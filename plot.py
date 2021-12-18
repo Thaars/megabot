@@ -6,6 +6,8 @@ from definitions import INDICATORS
 
 def plot_data(df):
     additional_plots = list()
+    INDICATORS = ['ADX', 'DMP', 'DMN', f'{8} Day EMA', f'{13} Day EMA']
+
     for indicator in INDICATORS:
         if indicator == 'ADX':
             additional_plots.append(mpf.make_addplot(df[indicator], color='grey', panel='lower'))

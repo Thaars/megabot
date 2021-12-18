@@ -12,6 +12,7 @@ yfinance = "*"
 mpl-finance = "*"
 python-binance = "*"
 pandas-ta = "*"
+pandas-finance = "*"
 
 [requires]
 python_version = "3.7"

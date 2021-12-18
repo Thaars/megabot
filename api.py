@@ -12,6 +12,8 @@ import time
 from binance.client import Client
 from datetime import timedelta, datetime
 from dateutil import parser
+import yfinance as yf
+from pandas_finance import Equity
 
 ### API
 from api_key import BINANCE_API_SECRET, BINANCE_API_KEY
@@ -34,7 +36,7 @@ def minutes_of_new_data(symbol, kline_size, data, source):
     return old, new
 
 def get_all_binance(symbol, kline_size, save = True):
-    filename = '%s-%s-data.csv' % (symbol, kline_size)
+    filename = 'data_with_indicators/%s-%s-data.csv' % (symbol, kline_size)
     if os.path.isfile(filename):
         data_df = pd.read_csv(filename)
     else:
@@ -55,6 +57,17 @@ def get_all_binance(symbol, kline_size, save = True):
     else: data_df = data
     data_df.set_index('Datetime', inplace=True)
     if save:
-        data_df.to_csv(f'data_with_indicators/{filename}', sep=";")
+        data_df.to_csv(f'{filename}', sep=";")
     print('All caught up..!')
     return data_df
+
+
+
+def get_stock_data(symbol, timeframe="1h", daily=False, days=365):
+    period_map = {"1h": "730d", "15m": "60d","5m": "60d"}
+    df = yf.Ticker(symbol)
+    df = df.history(period=period_map[timeframe], interval=timeframe)
+    filename = 'data_with_indicators/%s-%s-data.csv' % (symbol, timeframe)
+    #df.set_index('Datetime', inplace=True)
+    df.to_csv(f'{filename}', sep=";")
+    return df

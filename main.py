@@ -1,44 +1,84 @@
+import multiprocessing
+
+from regex import R
+
 import strategy
 import dataframe
 import plot
 import indicator
-from api import get_all_binance
+from api import get_all_binance, get_stock_data
 from portfolio import Portfolio
 from definitions import *
 from datetime import date
 
-sdate = date(2018, 4, 1)   # start date
+# sdate = date(2018, 4, 1)  # start date
+# edate = date(2020, 4, 1)
+
+
+sdate = date(2018, 4, 1)  # start date
 edate = date(2020, 4, 1)
-TIMEFRAME = "4h"
+TIMEFRAME = "1h"
 SYMBOL = 'BTCUSDT'
+EMA_LENGTH = 20
 
 
-def frange(start,stop, step=1.0):
-    while start < stop:
+def frange(start, stop, step=1.0):
+    while start <= stop:
         yield start
-        start +=step
+        start += step
+
+
+def worker(stop, limit, ema_short, ema_long):
+    print(f'Worker spawned')
+    test_single_symbol(SYMBOL, stop, limit, ema_short, ema_long, False)
+
+    print(f"Worker finished the work")
+
+
+def start_emas():
+    workers = []
+
+    for limit in frange(102, 106.5, 0.5):
+        for stop in frange(97, 99, 0.5):
+            for ema_short in range(3, EMA_LENGTH + 1):
+                for ema_long in range(3, EMA_LENGTH + 1):
+                    if ema_short < ema_long - 2 and 100 - stop <= limit - 100:
+                        test_single_symbol(SYMBOL, stop, limit, ema_short, ema_long, False)
+                        #
+                        # # while True:
+                        # #     if len(worker) <= 4:
+                        # w = multiprocessing.Process(
+                        #     target=worker,
+                        #     args=(stop, limit, ema_short, ema_long)
+                        # )
+                        # workers.append(w)
+                        #
+                        # for w in workers:
+                        #     w.start()
+                        #
+                        # for w in workers:
+                        #     w.join()
+                        #
+                        #         # break
+
 
 def main():
-    NUMBER_OF_TESTS = 0
-    OVR = 0
-    get_all_binance(SYMBOL, TIMEFRAME)
+    # get_all_binance(SYMBOL, TIMEFRAME)
+    # get_stock_data(SYMBOL, timeframe=TIMEFRAME)
+    # return
+    if __name__ == '__main__':
+        start_emas()
 
 
-    for limit in frange(102.5, 105.0, 0.5):
-        for stop in frange(98.0, 100.0, 0.5):
-            NUMBER_OF_TESTS += 1
-            OVR += test_single_symbol(SYMBOL, stop, limit, False)
-
-    print(f'AVG Performance: {OVR / NUMBER_OF_TESTS}')
-
-def test(df, pf , stop, limit):
-    df, pf = strategy.ma_crossing_adx(df, pf, 8, 13, stop, limit)
+def test(df, pf, stop, limit, ema_short, ema_long, ):
+    df, pf = strategy.ma_crossing_adx(df, pf, ema_short, ema_long, stop, limit)
     performance = round((pf.cash / STARTING_AMOUNT * 100) - 100, 4)
 
-
-    if performance > 5: # and pf.positive > pf.negative:
-        print(f'Performance: {performance} % - Stop:{stop}, Limit {limit} - {pf.positive/pf.negative}') # - positive: {pf.positive}, negative: {pf.negative}' )
-
+    if performance > 2:  # and pf.positive > pf.negative:
+        print(
+            f'Performance: {performance} %\t- Stop:{stop}, Limit: {limit}\t- EMA short: {ema_short}, EMA long: {ema_long},\t- {round(pf.positive / pf.negative, 2)}\t- positive: {pf.positive}, negative: {pf.negative}'
+        )
+    # print(f"Chart performance: \t\t {round((df['Close'].iloc[-1] - df['Close'].iloc[1]) / df['Close'].iloc[1] *100, 4)} %")
     return performance
     # print(f"Starting cash: \t\t\t {STARTING_AMOUNT}")
     # print(f"Ending cash: \t\t\t {round(pf.cash, 2)}")
@@ -47,26 +87,26 @@ def test(df, pf , stop, limit):
     # print(f'positive: {pf.positive}, negative: {pf.negative}')
 
 
-
-def test_single_symbol(item, stop, limit, chart=False):
+def test_single_symbol(item, stop, limit, ema_short, ema_long, chart=False):
     pf = Portfolio(STARTING_AMOUNT)
 
     df = dataframe.trading_data_from_csv(item, time=TIMEFRAME, add_indicators=False)
     df = df.loc[f'{sdate} 00:00:00-00:00':f'{edate} 23:00:00-00:00']
 
-    df = indicator.exponential_moving_average(df, 8)
-    df = indicator.exponential_moving_average(df, 13)
-    df = indicator.adx_indicator(df)
+    df = indicator.exponential_moving_average(df, ema_short)
+    df = indicator.exponential_moving_average(df, ema_long)
+    # df = indicator.adx_indicator(df)
 
     df = df.rename(columns={f'close': 'Close', f'high': 'High', f'low': 'Low', f'open': 'Open'})
 
-    performance = test(df, pf, stop, limit)
+    performance = test(df, pf, stop, limit, ema_short, ema_long, )
     pf.close_all_orders(df, df['Close'].iloc[-1])
 
     if chart:
         plot.plot_data(df)
 
     return performance
+
 
 def live_trading():
     # check system status
@@ -77,6 +117,4 @@ def live_trading():
     pass
 
 
-
 main()
-
