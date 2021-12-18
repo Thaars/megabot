@@ -1,1 +1,1 @@
-# algotrading
+# megabot
