@@ -11,7 +11,6 @@ class Portfolio:
     def create_order(self, df, index, instrument, current_price, limit=None, lower_stop=None):
         # only buy, when enough cash is available
 
-
         rounding = len(str(current_price)) - 2
         units = round_down(self.cash / current_price, rounding)
         comission = round(current_price * units * COMMISSION, 2)

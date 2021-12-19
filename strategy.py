@@ -1,14 +1,14 @@
 from definitions import *
 
 
-def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="EMA"):
+def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, adx, indicator_type="EMA"):
     """
     simple strategy the uses two moving averages.
     The short term crossing the long term chart is an indicator for bullish/bearish
     the lower short term crosses the upper long term indicates bullish marker (vice versa for bearish)
     """
 
-    adx_border = 17
+    adx_threshold = adx
 
     for (line, (index, row)) in enumerate(df.iterrows()):
 
@@ -16,7 +16,7 @@ def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="
 
         if last_row[f'{short_term} Day {indicator_type}'] < last_row[f'{long_term} Day {indicator_type}'] and \
                 row[f'{short_term} Day {indicator_type}'] > row[f'{long_term} Day {indicator_type}'] and \
-                row['ADX'] > adx_border and row['DMP'] > last_row['DMP']:
+                row['ADX'] > adx_threshold and row['DMP'] > last_row['DMP']:
 
             #bullish crossing
             stop_price = round(row['Close'] / 100 * stop, 2)
