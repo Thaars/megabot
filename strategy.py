@@ -17,6 +17,7 @@ def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="
         if last_row[f'{short_term} Day {indicator_type}'] < last_row[f'{long_term} Day {indicator_type}'] and \
                 row[f'{short_term} Day {indicator_type}'] > row[f'{long_term} Day {indicator_type}'] and \
                 row['ADX'] > adx_border and row['DMP'] > last_row['DMP']:
+
             # bullish crossing
             stop_price = round(row['Close'] / 100 * stop, 2)
             limit_price = round(row['Close'] / 100 * limit, 2)

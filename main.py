@@ -28,10 +28,9 @@ def frange(start, stop, step=1.0):
         start += step
 
 
-def worker(stop, limit, ema_short, ema_long):
+def worker(limit):
     print(f'Worker spawned')
-    test_single_symbol(SYMBOL, stop, limit, ema_short, ema_long, False)
-
+    start_emas(limit)
     print(f"Worker finished the work")
 
 
@@ -68,20 +67,34 @@ def main():
     # get_all_binance(SYMBOL, TIMEFRAME)
     # get_stock_data(SYMBOL, timeframe=TIMEFRAME)
     # return
+    workers = []
     if __name__ == '__main__':
-        start_emas()
+        for limit in frange(103, 105, 0.5):
+            w = multiprocessing.Process(
+                target=worker,
+                args=(limit,)
+            )
+            workers.append(w)
+
+        for w in workers:
+            w.start()
+
+        for w in workers:
+            w.join()
+        print(1)
+        # start_emas()
 
 
-def test(df, pf, stop, limit, ema_short, ema_long, ):
+def test(df, pf, stop, limit, ema_short, ema_long, adx):
     df, pf = strategy.ma_crossing_adx(df, pf, ema_short, ema_long, stop, limit)
     performance = round((pf.cash / STARTING_AMOUNT * 100) - 100, 4)
-    print(".", end="")
-    #if performance > 2:  # and pf.positive > pf.negative:
-    print("")
-    print(
-        f'Performance: {performance} %\t- Stop:{stop}, Limit: {limit}\t- EMA short: {ema_short}, EMA long: {ema_long},\t- {round((pf.positive1+pf.positive2) / pf.negative, 2)}\t- positive1: {pf.positive1},  positive2: {pf.positive2} negative: {pf.negative}'
-    )
-    print(pf.cash)
+
+    print('.', end='')
+    if performance > 2:  # and pf.positive > pf.negative:
+        print('')
+        print(
+            f'Performance: {performance} %\t- Stop:{stop}, Limit: {limit}\t- EMA short: {ema_short}, EMA long: {ema_long}, ADX: {adx},\t- {round(pf.positive / pf.negative, 2)}\t- positive: {pf.positive}, negative: {pf.negative}'
+        )
     # print(f"Chart performance: \t\t {round((df['Close'].iloc[-1] - df['Close'].iloc[1]) / df['Close'].iloc[1] *100, 4)} %")
     return performance
     # print(f"Starting cash: \t\t\t {STARTING_AMOUNT}")
