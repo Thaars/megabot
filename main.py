@@ -16,7 +16,7 @@ from datetime import date
 
 
 sdate = date(2018, 4, 1)  # start date
-edate = date(2020, 4, 1)
+edate = date(2020, 4, 1) # edate = date(2018, 8, 15)
 TIMEFRAME = "1h"
 SYMBOL = 'BTCUSDT'
 EMA_LENGTH = 20
@@ -38,6 +38,8 @@ def worker(stop, limit, ema_short, ema_long):
 def start_emas():
     workers = []
 
+    test_single_symbol(SYMBOL, 98, 103, 9, 13, True)
+    return
     for limit in frange(102, 106.5, 0.5):
         for stop in frange(97, 99, 0.5):
             for ema_short in range(3, EMA_LENGTH + 1):
@@ -73,11 +75,13 @@ def main():
 def test(df, pf, stop, limit, ema_short, ema_long, ):
     df, pf = strategy.ma_crossing_adx(df, pf, ema_short, ema_long, stop, limit)
     performance = round((pf.cash / STARTING_AMOUNT * 100) - 100, 4)
-
-    if performance > 2:  # and pf.positive > pf.negative:
-        print(
-            f'Performance: {performance} %\t- Stop:{stop}, Limit: {limit}\t- EMA short: {ema_short}, EMA long: {ema_long},\t- {round(pf.positive / pf.negative, 2)}\t- positive: {pf.positive}, negative: {pf.negative}'
-        )
+    print(".", end="")
+    #if performance > 2:  # and pf.positive > pf.negative:
+    print("")
+    print(
+        f'Performance: {performance} %\t- Stop:{stop}, Limit: {limit}\t- EMA short: {ema_short}, EMA long: {ema_long},\t- {round((pf.positive1+pf.positive2) / pf.negative, 2)}\t- positive1: {pf.positive1},  positive2: {pf.positive2} negative: {pf.negative}'
+    )
+    print(pf.cash)
     # print(f"Chart performance: \t\t {round((df['Close'].iloc[-1] - df['Close'].iloc[1]) / df['Close'].iloc[1] *100, 4)} %")
     return performance
     # print(f"Starting cash: \t\t\t {STARTING_AMOUNT}")

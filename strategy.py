@@ -12,16 +12,23 @@ def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="
 
     for (line, (index, row)) in enumerate(df.iterrows()):
 
-        last_row = df.iloc[line-1]
+        last_row = df.iloc[line - 1]
 
         if last_row[f'{short_term} Day {indicator_type}'] < last_row[f'{long_term} Day {indicator_type}'] and \
                 row[f'{short_term} Day {indicator_type}'] > row[f'{long_term} Day {indicator_type}'] and \
                 row['ADX'] > adx_border and row['DMP'] > last_row['DMP']:
-
-            #bullish crossing
+            # bullish crossing
             stop_price = round(row['Close'] / 100 * stop, 2)
             limit_price = round(row['Close'] / 100 * limit, 2)
-            pf.create_order(df, index, 'long', row['Close'], limit=limit_price, lower_stop=stop_price)
+
+            # 2 limits
+            if len(pf.orders) == 0:
+                limit2_price = round(row['Close'] / 100 * (limit * 2 - 100), 2)
+                pf.create_order(df, index, row['Close'], limit=limit_price, lower_stop=stop_price,
+                                limit2=limit2_price, pull_up_sl=True)
+
+            # 1 limit
+            # pf.create_order(df, index, row['Close'], limit=limit_price, lower_stop=stop_price)
             continue
 
         # check if stop loss has passed
