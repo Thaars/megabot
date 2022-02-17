@@ -1,4 +1,5 @@
 from definitions import *
+from strategies.price_outbreak import PRICE_OUTBREAK
 
 
 def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="EMA"):
@@ -38,3 +39,11 @@ def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="
     pf.close_all_orders(df, df['Close'].iloc[-1])
 
     return df, pf
+
+
+def price_outbreak(df, pf):
+    from strategies.price_outbreak import PRICE_OUTBREAK
+    po = PRICE_OUTBREAK(df, pf)
+    po.prepare()
+    return po.analyze()
+
