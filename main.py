@@ -27,10 +27,12 @@ def worker():
 
 
 def main():
-    # filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
-    filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
+    filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
+    # filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
     pf = test(filename, definitions.PLOT)
     print(f"*********************************************")
+    print(f"Symbol: {SYMBOL}")
+    print(f"Timeframe: {TIMEFRAME}")
     print(f"Trades: ")
     print(f"\t winning - {pf.winning}")
     print(f"\t losing - {pf.losing}")
@@ -38,8 +40,8 @@ def main():
     print(f'\t market: {pf.get_market_performance()}')
     print(f'\t overall: {pf.get_performance()}')
     print(f"Cash: ")
-    print(f'\t cash: {pf.cash}')
-    print(f'\t points: {pf.points}')
+    print(f'\t cash: {round(pf.cash, 2)}')
+    print(f'\t points: {round(pf.points, 5)}')
     return
     # workers = []
     # if __name__ == '__main__':
