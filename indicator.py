@@ -11,6 +11,8 @@ def last_10_15_20_candles(df, filename):
             and df.get('largest_body_20') is not None:
         return df
 
+    print('Writing last_10_15_20_candles to dataframe')
+
     data = {
         'highest_high_10': list(),
         'lowest_low_10': list(),
@@ -78,4 +80,7 @@ def last_10_15_20_candles(df, filename):
     data_df = pd.DataFrame(data, index=df.index)
     df = pd.concat([df, data_df], axis=1, join='inner')
     df.to_csv(filename, index=True, sep=";")
+
+    print('done')
+
     return df

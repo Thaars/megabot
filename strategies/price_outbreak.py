@@ -22,14 +22,17 @@ class PRICE_OUTBREAK:
         # the current candle body must be at least n times larger than the largest body of the n previous candles
         self.min_prev_body_diff_factor = 1.5
         # the current candle body may not be greater that n times of the largest body of the last n previous candles
-        self.max_prev_body_diff_factor = 2.5
+        self.max_prev_body_diff_factor = 3
+        # if set to True, the highest high and lowest low checks will be ignored
+        # so the current candle body must not be higher or lower than the previous ones
+        self.dont_use_highest_high_and_lowest_low = True
         # use the largest body instead of the current body for target and stop loss
         # this will disable the next target and stop loss factor settings
         self.use_largest_body_as_target_and_stop_loss = False
         # the target is n times the current candle body
-        self.target_diff_from_candle_factor = 1
+        self.target_diff_from_candle_factor = 3
         # the stop loss is n times the current candle body
-        self.stop_loss_diff_from_candle_factor = 1
+        self.stop_loss_diff_from_candle_factor = 1.5
         # the stop loss and target will be reached, if the price exceeds these values
         # the price is lower than low|close for long trades
         self.stop_loss_long_limit_key = 'low'
@@ -99,7 +102,7 @@ class PRICE_OUTBREAK:
         highest_high = row[f'highest_high_{self.number_of_past_candles}']
         if row['close'] > row['open']:
             # close must be greater than the highest high
-            if row['close'] > highest_high:
+            if self.dont_use_highest_high_and_lowest_low and row['close'] > highest_high:
                 # the upper shadow may not be greater than n% of the body
                 shadow = row['high'] - row['close']
                 if ((shadow * 100) / body) < self.max_wick_in_percent:
@@ -124,7 +127,7 @@ class PRICE_OUTBREAK:
         lowest_low = row[f'lowest_low_{self.number_of_past_candles}']
         if row['close'] < row['open']:
             # close must be lower than the lowest low
-            if row['close'] < lowest_low:
+            if self.dont_use_highest_high_and_lowest_low or row['close'] < lowest_low:
                 # the lower shadow may not be greater than n% of the body
                 shadow = row['close'] - row['low']
                 if ((shadow * 100) / body) < self.max_wick_in_percent:

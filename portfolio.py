@@ -6,6 +6,7 @@ class Portfolio:
     def __init__(self, df, starting_amount, *args, **kwargs):
         self.orders = list()
         self.cash = starting_amount
+        self.points = 0
         self.winning = {
             0: 0,
             1: 0
@@ -21,8 +22,8 @@ class Portfolio:
     def undo_all_open(self):
         # this is done by undoing the last openings
         for order in self.orders:
-            commission = round(order.buying_price * order.units * COMMISSION, 2)
-            self.cash += order.units * order.current_price + commission
+            commission = round(order['buying_price'] * order['units'] * COMMISSION, 2)
+            self.cash += order['units'] * order['buying_price'] + commission
 
     def create_order(
             self,
@@ -115,6 +116,7 @@ class Portfolio:
             else:
                 self.losing[order['order_id']] += 1
             self.cash += order['units'] * price
+            self.points += price - order['buying_price']
         # bearish
         if order['trade_type'] == 'short':
             diff = order['units'] * order['buying_price'] - order['units'] * price
@@ -123,6 +125,7 @@ class Portfolio:
             else:
                 self.losing[order['order_id']] += 1
             self.cash += (order['units'] * order['buying_price']) + diff
+            self.points += order['buying_price'] - price
         # all
         commission = round(order['buying_price'] * order['units'] * COMMISSION, 2)
         self.cash -= commission
