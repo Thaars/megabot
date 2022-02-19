@@ -20,7 +20,7 @@ import definitions
 from api_key import BINANCE_API_SECRET, BINANCE_API_KEY
 
 ### CONSTANTS
-binsizes = {"1m": 1, "5m": 5, "15m": 15, "1h": 60, "2h": 120,"4h": 240, "1d": 1440}
+binsizes = {"1m": 1, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "2h": 120,"4h": 240, "1d": 1440}
 batch_size = 750
 
 binance_client = Client(api_key=BINANCE_API_KEY, api_secret=BINANCE_API_SECRET)
@@ -71,28 +71,34 @@ def get_all_binance(symbol, kline_size, save=True):
 
 
 def get_stock_data(symbol, timeframe="5m"):
-    to_date = date.today().strftime('%d %b %Y')
-    from_date = (date.today() - timedelta(days=60)).strftime('%d %b %Y')
     filename = 'data_with_indicators/%s-%s-%s-%s-data.csv' % (
-        symbol, timeframe, from_date, to_date
+        symbol, timeframe, definitions.HISTORICAL_DATA_FROM, definitions.HISTORICAL_DATA_TO
     )
     if os.path.isfile(filename):
         data_df = pd.read_csv(filename)
     else:
-        period_map = {"15m": "60d", "5m": "60d"}
-        df = yf.Ticker(symbol)
-        df = df.history(period=period_map[timeframe], interval=timeframe)
-        df = df.rename(columns={
-            f'Close': 'close',
-            f'High': 'high',
-            f'Low': 'low',
-            f'Open': 'open',
-            f'Volume': 'volume',
-            f'Dividends': 'dividends',
-            f'Stock Splits': 'stock splits'
-        })
-        df.index.rename('datetime', inplace=True)
-        # filename = 'data_with_indicators/%s-%s-data.csv' % (symbol, timeframe)
-        # df.set_index('datetime', inplace=True)
-        df.to_csv(f'{filename}', index=True, sep=";")
+        to_date = date.today().strftime('%d %b %Y')
+        from_date = (date.today() - timedelta(days=60)).strftime('%d %b %Y')
+        filename = 'data_with_indicators/%s-%s-%s-%s-data.csv' % (
+            symbol, timeframe, from_date, to_date
+        )
+        if os.path.isfile(filename):
+            data_df = pd.read_csv(filename)
+        else:
+            period_map = {"15m": "60d", "5m": "60d"}
+            df = yf.Ticker(symbol)
+            df = df.history(period=period_map[timeframe], interval=timeframe)
+            df = df.rename(columns={
+                f'Close': 'close',
+                f'High': 'high',
+                f'Low': 'low',
+                f'Open': 'open',
+                f'Volume': 'volume',
+                f'Dividends': 'dividends',
+                f'Stock Splits': 'stock splits'
+            })
+            df.index.rename('datetime', inplace=True)
+            # filename = 'data_with_indicators/%s-%s-data.csv' % (symbol, timeframe)
+            # df.set_index('datetime', inplace=True)
+            df.to_csv(f'{filename}', index=True, sep=";")
     return filename

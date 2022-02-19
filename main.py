@@ -27,8 +27,8 @@ def worker():
 
 
 def main():
-    filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
-    # filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
+    # filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
+    filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
     pf = test(filename, definitions.PLOT)
     print(f"*********************************************")
     print(f"Symbol: {SYMBOL}")
@@ -39,7 +39,7 @@ def main():
     print(f"Performance: ")
     print(f'\t market: {pf.get_market_performance()}')
     print(f'\t overall: {pf.get_performance()}')
-    print(f"Cash: ")
+    print(f"Total: ")
     print(f'\t cash: {round(pf.cash, 2)}')
     print(f'\t points: {round(pf.points, 5)}')
     return

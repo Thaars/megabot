@@ -43,7 +43,7 @@ def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="
 
 def price_outbreak(df, pf):
     from strategies.price_outbreak import PRICE_OUTBREAK
-    po = PRICE_OUTBREAK(df, pf)
+    po = PRICE_OUTBREAK(df=df, pf=pf, trade_type='long')
     po.prepare()
     return po.analyze()
 
