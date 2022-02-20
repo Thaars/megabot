@@ -22,8 +22,23 @@ START_DATE = date(2021, 1, 1)
 END_DATE = date(2021, 12, 31)
 
 TIMEFRAME = "5m"
-# SYMBOL = 'BNBBTC'
-SYMBOL = 'GC=F'
+# SYMBOL = 'ETHBTC'
 
-# PLOT = True
-PLOT = False
+SYMBOL = 'GC=F'
+TICK_SIZE = 0.1
+TICK_VALUE = 10
+USE_TRADING_BREAKS = True
+# USE_TRADING_BREAKS = False
+TRADING_BREAKS = [
+    {
+        'from': '16:00',
+        'to': '18:00'
+    },
+    {
+        'from': '08:00',
+        'to': '09:00'
+    }
+]
+
+PLOT = True
+# PLOT = False

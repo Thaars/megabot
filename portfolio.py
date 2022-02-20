@@ -1,4 +1,6 @@
-from definitions import STOP_LOSS_LEVEL, COMMISSION, STARTING_AMOUNT
+from datetime import datetime
+
+from definitions import *
 import math
 
 
@@ -6,11 +8,15 @@ class Portfolio:
     def __init__(self, df, starting_amount, *args, **kwargs):
         self.orders = list()
         self.cash = starting_amount
-        self.points = 0
+        self.ticks = 0
+        self.winning_ticks = 0
+        self.losing_ticks = 0
         self.winning = {
             0: 0,
             1: 0
         }
+        self.winners = list()
+        self.losers = list()
         self.losing = {
             0: 0,
             1: 0
@@ -18,12 +24,22 @@ class Portfolio:
         self.market_start_amount = 0
         self.market_end_amount = 0
         self.df = df
+        self.max_stop_loss_amount = 0
 
     def undo_all_open(self):
         # this is done by undoing the last openings
         for order in self.orders:
             commission = round(order['buying_price'] * order['units'] * COMMISSION, 2)
             self.cash += order['units'] * order['buying_price'] + commission
+
+    def is_currently_a_trading_break(self, current_time):
+        if USE_TRADING_BREAKS:
+            for trading_break in TRADING_BREAKS:
+                break_from_time = datetime.strptime(trading_break['from'], '%H:%M').time()
+                break_to_time = datetime.strptime(trading_break['to'], '%H:%M').time()
+                if break_from_time < current_time < break_to_time:
+                    return True
+        return False
 
     def create_order(
             self,
@@ -33,11 +49,13 @@ class Portfolio:
             target=None,
             stop_loss=None,
             target_2=None,
-            stop_loss_2=None,
             trade_type='long'
     ):
-        # only buy, when enough cash is available
+        # check fro trading breaks
+        if self.is_currently_a_trading_break(current_time=index.time()):
+            return False
 
+        # trade only buy, when enough cash is available
         rounding = len(str(current_price)) - 2
         units = round_down(self.cash / current_price, rounding)
         commission = round(current_price * units * COMMISSION, 2)
@@ -58,7 +76,6 @@ class Portfolio:
                 #                   buying_price=current_price,
                 #                   units=units / 2,
                 #                   target_2=target_2,
-                #                   stop_loss_2=stop_loss_2 if stop_loss_2 is not None else stop_loss,
                 #                   trade_type=trade_type)
                 #
                 # if target_2:
@@ -87,45 +104,68 @@ class Portfolio:
             # the end of the tested timeframe has arrived
             # undo the last position opening, because closing at any point could distort the result
             self.undo_all_open()
-        close_price = None
         for order in self.orders:
             # bullish
             if order['trade_type'] == 'long':
-                if row[stop_loss_long_limit_key] <= order['stop_loss']:
+                # check fro trading breaks
+                if self.is_currently_a_trading_break(current_time=index.time()):
+                    self.close_order(order, row['close'], index)
+                # stop loss
+                elif row[stop_loss_long_limit_key] <= order['stop_loss']:
+                    current_stop_loss_amount = order['buying_price'] - order['stop_loss']
+                    if current_stop_loss_amount > self.max_stop_loss_amount:
+                        self.max_stop_loss_amount = current_stop_loss_amount
                     self.close_order(order, order['stop_loss'], index)
-                    close_price = order['stop_loss']
+                # target
                 elif row[target_long_limit_key] >= order['target']:
                     self.close_order(order, order['target'], index)
-                    close_price = order['target']
             # bearish
             if order['trade_type'] == 'short':
-                if row[stop_loss_short_limit_key] >= order['stop_loss']:
+                # check fro trading breaks
+                if self.is_currently_a_trading_break(current_time=index.time()):
+                    self.close_order(order, row['close'], index)
+                # stop loss
+                elif row[stop_loss_short_limit_key] >= order['stop_loss']:
+                    current_stop_loss_amount = order['stop_loss'] - order['buying_price']
+                    if current_stop_loss_amount > self.max_stop_loss_amount:
+                        self.max_stop_loss_amount = current_stop_loss_amount
                     self.close_order(order, order['stop_loss'], index)
-                    close_price = order['stop_loss']
+                # target
                 elif row[target_short_limit_key] <= order['target']:
                     self.close_order(order, order['target'], index)
-                    close_price = order['target']
             return True
         return False
 
     def close_order(self, order, price, index):
         # bullish
         if order['trade_type'] == 'long':
+            price_diff = price - order['buying_price']
+            current_ticks = math.floor(price_diff / TICK_SIZE)
             if price > order['buying_price']:
                 self.winning[order['order_id']] += 1
+                self.winning_ticks += current_ticks
+                self.winners.append(round(price_diff, 2))
             else:
                 self.losing[order['order_id']] += 1
+                self.losing_ticks += current_ticks
+                self.losers.append(round(price_diff, 2))
             self.cash += order['units'] * price
-            self.points += price - order['buying_price']
+            self.ticks += current_ticks
         # bearish
         if order['trade_type'] == 'short':
+            price_diff = order['buying_price'] - price
+            current_ticks = math.floor(price_diff / TICK_SIZE)
             diff = order['units'] * order['buying_price'] - order['units'] * price
             if price < order['buying_price']:
                 self.winning[order['order_id']] += 1
+                self.winning_ticks += current_ticks
+                self.winners.append(round(price_diff, 2))
             else:
                 self.losing[order['order_id']] += 1
+                self.losing_ticks += current_ticks
+                self.losers.append(round(price_diff, 2))
             self.cash += (order['units'] * order['buying_price']) + diff
-            self.points += order['buying_price'] - price
+            self.ticks += current_ticks
         # all
         commission = round(order['buying_price'] * order['units'] * COMMISSION, 2)
         self.cash -= commission

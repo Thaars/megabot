@@ -36,12 +36,20 @@ def main():
     print(f"Trades: ")
     print(f"\t winning - {pf.winning}")
     print(f"\t losing - {pf.losing}")
+    print(f"\t winners - {pf.winners}")
+    print(f"\t losers - {pf.losers}")
     print(f"Performance: ")
     print(f'\t market: {pf.get_market_performance()}')
     print(f'\t overall: {pf.get_performance()}')
     print(f"Total: ")
     print(f'\t cash: {round(pf.cash, 2)}')
-    print(f'\t points: {round(pf.points, 5)}')
+    print(f'\t ticks: {round(pf.ticks, 5)}')
+    print(f'\t winning ticks: {round(pf.winning_ticks, 5)}')
+    print(f'\t losing ticks: {round(pf.losing_ticks, 5)}')
+    print(f'\t tick cash: {round(pf.ticks * TICK_VALUE, 5)}')
+    print(f'\t max stop loss amount: {round(pf.max_stop_loss_amount, 5)}')
+    print(f'\t max stop loss ticks: {round(pf.max_stop_loss_amount / TICK_SIZE, 5)}')
+    print(f'\t max stop loss margin: {round((pf.max_stop_loss_amount / TICK_SIZE) * TICK_VALUE, 5)}')
     return
     # workers = []
     # if __name__ == '__main__':
