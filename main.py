@@ -1,3 +1,4 @@
+import json
 import multiprocessing
 
 import definitions
@@ -6,6 +7,7 @@ import dataframe
 import plot
 import indicator
 from api import get_all_binance, get_stock_data
+from db import DB
 from portfolio import Portfolio
 from definitions import *
 from datetime import date
@@ -27,10 +29,13 @@ def worker():
 
 
 def main():
+    db = DB().db
     # filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
     filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
-    pf = test(filename, definitions.PLOT)
+    pf, config = test(filename, definitions.PLOT)
+    save_strategy(db, pf, config)
     print(f"*********************************************")
+    print(f"Config: {json.dumps(config)}")
     print(f"Symbol: {SYMBOL}")
     print(f"Timeframe: {TIMEFRAME}")
     print(f"Trades: ")
@@ -76,13 +81,79 @@ def test(filename, chart=False):
     df = df.loc[f'{definitions.START_DATE} 00:00:00-00:00':f'{definitions.END_DATE} 23:00:00-00:00']
 
     pf = Portfolio(df, STARTING_AMOUNT)
-    df, pf = strategy.price_outbreak(df, pf)
-    performance = round((pf.cash / STARTING_AMOUNT * 100) - 100, 4)
+    df, pf, config = strategy.price_breakout(df, pf)
+    # performance = round((pf.cash / STARTING_AMOUNT * 100) - 100, 4)
 
     if chart:
         plot.plot_data(df)
 
-    return pf
+    return pf, config
+
+
+def save_strategy(db, pf, config):
+    db_cursor = db.cursor()
+    days = (END_DATE - START_DATE).days
+    trading_breaks = None
+    if USE_TRADING_BREAKS:
+        trading_breaks = json.dumps(TRADING_BREAKS)
+    db_cursor.executemany("insert into results("
+                              "`symbol`,"
+                              "`strategy`,"
+                              "`strategy_config`,"
+                              "`timeframe`,"
+                              "`days`,"
+                              "`performance`,"
+                              "`market_performance`,"
+                              "`winning`,"
+                              "`losing`,"
+                              "`winners`,"
+                              "`losers`,"
+                              "`starts_at`,"
+                              "`ends_at`,"
+                              "`ticks`,"
+                              "`winning_ticks`,"
+                              "`losing_ticks`,"
+                              "`tick_cash`,"
+                              "`max_stop_loss_amount`,"
+                              "`max_stop_loss_ticks`,"
+                              "`max_stop_loss_margin`,"
+                              "`tick_size`,"
+                              "`tick_value`,"
+                              "`trading_breaks`,"
+                              "`commission`,"
+                              "`start_cash`,"
+                              "`end_cash`"
+                          ") values("
+                          "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                          ")", [(
+                              SYMBOL,
+                              config['strategy'],
+                              json.dumps(config),
+                              TIMEFRAME,
+                              days,
+                              pf.get_performance(),
+                              pf.get_market_performance(),
+                              json.dumps(pf.winning),
+                              json.dumps(pf.losing),
+                              json.dumps(pf.winners),
+                              json.dumps(pf.losers),
+                              f'{START_DATE}',
+                              f'{END_DATE}',
+                              float(round(pf.ticks, 5)),
+                              float(round(pf.winning_ticks, 5)),
+                              float(round(pf.losing_ticks, 5)),
+                              float(round(pf.ticks * TICK_VALUE, 5)),
+                              float(round(pf.max_stop_loss_amount, 5)),
+                              float(round(pf.max_stop_loss_amount / TICK_SIZE, 5)),
+                              float(round((pf.max_stop_loss_amount / TICK_SIZE) * TICK_VALUE, 5)),
+                              float(TICK_SIZE),
+                              float(TICK_VALUE),
+                              json.dumps(trading_breaks),
+                              float(COMMISSION),
+                              float(STARTING_AMOUNT),
+                              float(round(pf.cash, 2))
+                          )])
+    db.commit()
 
 
 main()

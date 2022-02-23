@@ -1,11 +1,12 @@
 import zlib
 import pandas as pd
+from definitions import *
 
 
 # these classes will hold all the required information for their part of the strategy
 # it defines all possibilities and will generate random values based on that
 # possible values and analyze the data for each tick
-class PRICE_OUTBREAK:
+class PRICE_BREAKOUT:
     def __init__(self, df, pf, trade_type='long'):
         self.indicator = self.__class__.__name__
         self.df = df
@@ -15,33 +16,34 @@ class PRICE_OUTBREAK:
             'long': ["bullish"],
             'short': ["bearish"]
         }
+        self.config = PRICE_BREAKOUT_CONFIG
         # number of past candles to take into account for decisions
-        self.number_of_past_candles = 20
+        self.number_of_past_candles = self.config['number_of_past_candles']
         # the (lower (short) or upper (long)) wick may not be larger than this value in percent of the candle body
-        self.max_wick_in_percent = 25
+        self.max_wick_in_percent = self.config['max_wick_in_percent']
         # the current candle body must be at least n times larger than the largest body of the n previous candles
-        self.min_prev_body_diff_factor = 2
+        self.min_prev_body_diff_factor = self.config['min_prev_body_diff_factor']
         # the current candle body may not be greater that n times of the largest body of the last n previous candles
-        self.max_prev_body_diff_factor = 4
+        self.max_prev_body_diff_factor = self.config['max_prev_body_diff_factor']
         # if set to True, the highest high and lowest low checks will be used
         # if set to false, the current candle body must not be higher or lower than the previous ones
-        self.use_highest_high_and_lowest_low = True
+        self.use_highest_high_and_lowest_low = self.config['use_highest_high_and_lowest_low']
         # use the largest body instead of the current body for target and stop loss
         # this will disable the next target and stop loss factor settings
-        self.use_largest_body_as_target_and_stop_loss = False
+        self.use_largest_body_as_target_and_stop_loss = self.config['use_largest_body_as_target_and_stop_loss']
         # the target is n times the current candle body
-        self.target_diff_from_candle_factor = 2
+        self.target_diff_from_candle_factor = self.config['target_diff_from_candle_factor']
         # the stop loss is n times the current candle body
-        self.stop_loss_diff_from_candle_factor = 1
+        self.stop_loss_diff_from_candle_factor = self.config['stop_loss_diff_from_candle_factor']
         # the stop loss and target will be reached, if the price exceeds these values
         # the price is lower than low|close for long trades
-        self.stop_loss_long_limit_key = 'low'
+        self.stop_loss_long_limit_key = self.config['stop_loss_long_limit_key']
         # the price is higher than high|close for long trades
-        self.target_long_limit_key = 'high'
+        self.target_long_limit_key = self.config['target_long_limit_key']
         # the price is higher than high|close for short trades
-        self.stop_loss_short_limit_key = 'high'
+        self.stop_loss_short_limit_key = self.config['stop_loss_short_limit_key']
         # the price is lower than low|close for short trades
-        self.target_short_limit_key = 'low'
+        self.target_short_limit_key = self.config['target_short_limit_key']
 
     def prepare(self):
         pass
@@ -96,7 +98,7 @@ class PRICE_OUTBREAK:
                 self.pf.market_end_amount = row.close
                 self.pf.close_position(line, index, row, undo_all_open=True)
 
-        return self.df, self.pf
+        return self.df, self.pf, self.config
 
     def rule_long_bullish(self, line, index, row, body):
         highest_high = row[f'highest_high_{self.number_of_past_candles}']

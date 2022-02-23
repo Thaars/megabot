@@ -250,6 +250,7 @@ class Portfolio:
     def get_market_performance(self):
         return float(round(((self.market_end_amount * 100) / self.market_start_amount) - 100, 2))
 
+
 def round_down(n, decimals=0):
     multiplier = 10 ** decimals
     return math.floor(n * multiplier) / multiplier

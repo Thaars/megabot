@@ -1,5 +1,5 @@
 from definitions import *
-from strategies.price_outbreak import PRICE_OUTBREAK
+from strategies.price_breakout import PRICE_BREAKOUT
 
 
 def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="EMA"):
@@ -41,9 +41,9 @@ def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="
     return df, pf
 
 
-def price_outbreak(df, pf):
-    from strategies.price_outbreak import PRICE_OUTBREAK
-    po = PRICE_OUTBREAK(df=df, pf=pf, trade_type='long')
+def price_breakout(df, pf):
+    from strategies.price_breakout import PRICE_BREAKOUT
+    po = PRICE_BREAKOUT(df=df, pf=pf, trade_type='long')
     po.prepare()
     return po.analyze()
 
