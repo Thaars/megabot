@@ -25,10 +25,13 @@ class DB:
         db_cursor = db.cursor()
         db_cursor.execute("create table if not exists results("
                           "`id` int(10) auto_increment primary key,"
+                          "`general_hash` varchar(250),"
+                          "`exact_hash` varchar(250),"
                           "`symbol` varchar(250),"
                           "`strategy` varchar(250),"
                           "`strategy_config` text,"
                           "`timeframe` varchar(250),"
+                          "`trade_type` varchar(250),"
                           "`days` varchar(250),"
                           "`performance` decimal(10,2),"
                           "`market_performance` decimal(10,2),"

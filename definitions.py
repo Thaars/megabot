@@ -5,6 +5,8 @@ __author__ = 'Jan Olschewski, Ingo Volkmann'
 
 from datetime import date
 
+from strategies.price_breakout import PRICE_BREAKOUT
+
 MYSQL_HOST = "localhost"
 MYSQL_USER = "root"
 MYSQL_PASS = "godiv"
@@ -30,7 +32,8 @@ TIMEFRAME = "5m"
 # SYMBOL = 'BTCUSDT'
 
 PRICE_BREAKOUT_CONFIG = {
-    'strategy': 'price_breakout',
+    # long|short|both
+    'trade_type': 'long',
     # number of past candles to take into account for decisions
     'number_of_past_candles': 20,
     # the (lower (short) or upper (long)) wick may not be larger than this value in percent of the candle body
@@ -60,11 +63,38 @@ PRICE_BREAKOUT_CONFIG = {
     'target_short_limit_key': 'low',
 }
 
-# todo: config irgendwie persistieren zusammen mit den Ergebnissen, damit man das auch alles später wiederherstellen kann
-#   ggf. auch einfach in Dateien schreiben - oder in DB - vielleicht sogar zusammen mit dem Plot?
+PRICE_MINI_WICKS_CONFIG = {
+    # long|short|both
+    'trade_type': 'long',
+    # number of past candles to take into account for decisions
+    'number_of_past_candles': 5,
+    # the (lower (short) or upper (long)) wick may not be larger than this value in percent of the candle body
+    'max_positive_wick_in_percent': 2,
+    # the (upper (short) or lower (long)) wick may not be larger than this value in percent of the candle body
+    'max_negative_wick_in_percent': 2,
+    # the current candle body must be at least n times larger than the largest body of the n previous candles
+    'min_prev_body_diff_factor': 0.1,
+    # the current candle body may not be greater that n times of the largest body of the last n previous candles
+    'max_prev_body_diff_factor': 3,
+    # the target is n times the current candle body
+    'target_diff_from_candle_factor': 2,
+    # the stop loss is n times the current candle body
+    'stop_loss_diff_from_candle_factor': 0.1,
+    # the stop loss and target will be reached, if the price exceeds these values
+    # the price is lower than low|close for long trades
+    'stop_loss_long_limit_key': 'low',
+    # the price is higher than high|close for long trades
+    'target_long_limit_key': 'high',
+    # the price is higher than high|close for short trades
+    'stop_loss_short_limit_key': 'high',
+    # the price is lower than low|close for short trades
+    'target_short_limit_key': 'low',
+}
 
 # todo: Gold retest mit anderen Zeiträumen
 
+USED_STRATEGY = 'price_breakout'
+# USED_STRATEGY = 'price_mini_wicks'
 SYMBOL = 'GC=F'
 TICK_SIZE = 0.1
 TICK_VALUE = 10

@@ -43,7 +43,25 @@ def ma_crossing_adx(df, pf, short_term, long_term, stop, limit, indicator_type="
 
 def price_breakout(df, pf):
     from strategies.price_breakout import PRICE_BREAKOUT
-    po = PRICE_BREAKOUT(df=df, pf=pf, trade_type='long')
+    po = PRICE_BREAKOUT(df=df, pf=pf)
     po.prepare()
     return po.analyze()
+
+
+def price_mini_wicks(df, pf):
+    from strategies.price_mini_wicks import PRICE_MINI_WICKS
+    po = PRICE_MINI_WICKS(df=df, pf=pf)
+    po.prepare()
+    return po.analyze()
+
+# todo: neue strategie:
+#   Candle Wicks dürfen beide max. 5 oder 10 Prozent vom Body lang sein
+#   Body darf nicht mehr als doppelt so groß sein wie der gößte Body der letzten 5 Candles
+#   Stop Loss: 1x Candle Body
+#   Target: 1x Candle Body
+#   Short + Long
+#   5m, 10m, 15m testen ggf. auch mal 1m oder 3m
+#     Gold: ggf. 1m oder 2m, weil bei 5m immer längere Wicks zu sehen waren
+#     BTC: scheint mit 5m ganz gut zu sein
+#   DF zusätzlich anreichern mit den letzten 5 Kerzen
 

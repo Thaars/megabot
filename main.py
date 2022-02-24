@@ -1,5 +1,6 @@
 import json
 import multiprocessing
+import zlib
 
 import definitions
 import strategy
@@ -11,6 +12,7 @@ from db import DB
 from portfolio import Portfolio
 from definitions import *
 from datetime import date
+
 
 # sdate = date(2018, 4, 1)  # start date
 # edate = date(2020, 4, 1)
@@ -76,13 +78,14 @@ def main():
 def test(filename, chart=False):
     df = dataframe.trading_data_from_csv(filename)
 
-    df = indicator.last_10_15_20_candles(df, filename)
+    df = indicator.last_5_10_15_20_candles(df, filename)
 
     df = df.loc[f'{definitions.START_DATE} 00:00:00-00:00':f'{definitions.END_DATE} 23:00:00-00:00']
 
     pf = Portfolio(df, STARTING_AMOUNT)
-    df, pf, config = strategy.price_breakout(df, pf)
-    # performance = round((pf.cash / STARTING_AMOUNT * 100) - 100, 4)
+    # df, pf, config = strategy['price_breakout'](df, pf)
+    used_strategy = getattr(strategy, USED_STRATEGY)
+    df, pf, config = used_strategy(df, pf)
 
     if chart:
         plot.plot_data(df)
@@ -96,62 +99,83 @@ def save_strategy(db, pf, config):
     trading_breaks = None
     if USE_TRADING_BREAKS:
         trading_breaks = json.dumps(TRADING_BREAKS)
+    general_hash_values = [
+        SYMBOL,
+        USED_STRATEGY,
+        json.dumps(config),
+        TIMEFRAME,
+        TICK_SIZE,
+        TICK_VALUE,
+    ]
+    exact_hash_values = general_hash_values + [
+        f'{START_DATE}',
+        f'{END_DATE}',
+        COMMISSION,
+        STARTING_AMOUNT,
+        json.dumps(trading_breaks),
+    ]
     db_cursor.executemany("insert into results("
-                              "`symbol`,"
-                              "`strategy`,"
-                              "`strategy_config`,"
-                              "`timeframe`,"
-                              "`days`,"
-                              "`performance`,"
-                              "`market_performance`,"
-                              "`winning`,"
-                              "`losing`,"
-                              "`winners`,"
-                              "`losers`,"
-                              "`starts_at`,"
-                              "`ends_at`,"
-                              "`ticks`,"
-                              "`winning_ticks`,"
-                              "`losing_ticks`,"
-                              "`tick_cash`,"
-                              "`max_stop_loss_amount`,"
-                              "`max_stop_loss_ticks`,"
-                              "`max_stop_loss_margin`,"
-                              "`tick_size`,"
-                              "`tick_value`,"
-                              "`trading_breaks`,"
-                              "`commission`,"
-                              "`start_cash`,"
-                              "`end_cash`"
+                            "`general_hash`,"
+                            "`exact_hash`,"
+                            "`symbol`,"
+                            "`strategy`,"
+                            "`strategy_config`,"
+                            "`timeframe`,"
+                            "`trade_type`,"
+                            "`days`,"
+                            "`performance`,"
+                            "`market_performance`,"
+                            "`winning`,"
+                            "`losing`,"
+                            "`winners`,"
+                            "`losers`,"
+                            "`starts_at`,"
+                            "`ends_at`,"
+                            "`ticks`,"
+                            "`winning_ticks`,"
+                            "`losing_ticks`,"
+                            "`tick_cash`,"
+                            "`max_stop_loss_amount`,"
+                            "`max_stop_loss_ticks`,"
+                            "`max_stop_loss_margin`,"
+                            "`tick_size`,"
+                            "`tick_value`,"
+                            "`trading_breaks`,"
+                            "`commission`,"
+                            "`start_cash`,"
+                            "`end_cash`"
                           ") values("
-                          "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                          "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
                           ")", [(
-                              SYMBOL,
-                              config['strategy'],
-                              json.dumps(config),
-                              TIMEFRAME,
-                              days,
-                              pf.get_performance(),
-                              pf.get_market_performance(),
-                              json.dumps(pf.winning),
-                              json.dumps(pf.losing),
-                              json.dumps(pf.winners),
-                              json.dumps(pf.losers),
-                              f'{START_DATE}',
-                              f'{END_DATE}',
-                              float(round(pf.ticks, 5)),
-                              float(round(pf.winning_ticks, 5)),
-                              float(round(pf.losing_ticks, 5)),
-                              float(round(pf.ticks * TICK_VALUE, 5)),
-                              float(round(pf.max_stop_loss_amount, 5)),
-                              float(round(pf.max_stop_loss_amount / TICK_SIZE, 5)),
-                              float(round((pf.max_stop_loss_amount / TICK_SIZE) * TICK_VALUE, 5)),
-                              float(TICK_SIZE),
-                              float(TICK_VALUE),
-                              json.dumps(trading_breaks),
-                              float(COMMISSION),
-                              float(STARTING_AMOUNT),
-                              float(round(pf.cash, 2))
+                            zlib.adler32(json.dumps(general_hash_values).encode('UTF-8')) & 0xffffffff,
+                            zlib.adler32(json.dumps(exact_hash_values).encode('UTF-8')) & 0xffffffff,
+                            SYMBOL,
+                            USED_STRATEGY,
+                            json.dumps(config),
+                            TIMEFRAME,
+                            config['trade_type'],
+                            days,
+                            pf.get_performance(),
+                            pf.get_market_performance(),
+                            json.dumps(pf.winning),
+                            json.dumps(pf.losing),
+                            json.dumps(pf.winners),
+                            json.dumps(pf.losers),
+                            f'{START_DATE}',
+                            f'{END_DATE}',
+                            float(round(pf.ticks, 5)),
+                            float(round(pf.winning_ticks, 5)),
+                            float(round(pf.losing_ticks, 5)),
+                            float(round(pf.ticks * TICK_VALUE, 5)),
+                            float(round(pf.max_stop_loss_amount, 5)),
+                            float(round(pf.max_stop_loss_amount / TICK_SIZE, 5)),
+                            float(round((pf.max_stop_loss_amount / TICK_SIZE) * TICK_VALUE, 5)),
+                            float(TICK_SIZE),
+                            float(TICK_VALUE),
+                            json.dumps(trading_breaks),
+                            float(COMMISSION),
+                            float(STARTING_AMOUNT),
+                            float(round(pf.cash, 2))
                           )])
     db.commit()
 
