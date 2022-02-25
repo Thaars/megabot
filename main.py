@@ -1,5 +1,6 @@
 import json
 import multiprocessing
+import warnings
 import zlib
 
 import definitions
@@ -32,8 +33,8 @@ def worker():
 
 def main():
     db = DB().db
-    # filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
-    filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
+    filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
+    # filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
     pf, config = test(filename, definitions.PLOT)
     save_strategy(db, pf, config)
     print(f"*********************************************")
@@ -53,10 +54,8 @@ def main():
     print(f'\t ticks: {round(pf.ticks, 5)}')
     print(f'\t winning ticks: {round(pf.winning_ticks, 5)}')
     print(f'\t losing ticks: {round(pf.losing_ticks, 5)}')
-    print(f'\t tick cash: {round(pf.ticks * TICK_VALUE, 5)}')
-    print(f'\t max stop loss amount: {round(pf.max_stop_loss_amount, 5)}')
-    print(f'\t max stop loss ticks: {round(pf.max_stop_loss_amount / TICK_SIZE, 5)}')
-    print(f'\t max stop loss margin: {round((pf.max_stop_loss_amount / TICK_SIZE) * TICK_VALUE, 5)}')
+    print(f'\t tick cash: {round(pf.tick_cash, 5)}')
+    print(f'\t lowest tick cash: {round(pf.lowest_tick_cash, 5)}')
     return
     # workers = []
     # if __name__ == '__main__':
@@ -135,9 +134,7 @@ def save_strategy(db, pf, config):
                             "`winning_ticks`,"
                             "`losing_ticks`,"
                             "`tick_cash`,"
-                            "`max_stop_loss_amount`,"
-                            "`max_stop_loss_ticks`,"
-                            "`max_stop_loss_margin`,"
+                            "`lowest_tick_cash`,"
                             "`tick_size`,"
                             "`tick_value`,"
                             "`trading_breaks`,"
@@ -145,7 +142,7 @@ def save_strategy(db, pf, config):
                             "`start_cash`,"
                             "`end_cash`"
                           ") values("
-                          "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                          "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
                           ")", [(
                             zlib.adler32(json.dumps(general_hash_values).encode('UTF-8')) & 0xffffffff,
                             zlib.adler32(json.dumps(exact_hash_values).encode('UTF-8')) & 0xffffffff,
@@ -166,10 +163,8 @@ def save_strategy(db, pf, config):
                             float(round(pf.ticks, 5)),
                             float(round(pf.winning_ticks, 5)),
                             float(round(pf.losing_ticks, 5)),
-                            float(round(pf.ticks * TICK_VALUE, 5)),
-                            float(round(pf.max_stop_loss_amount, 5)),
-                            float(round(pf.max_stop_loss_amount / TICK_SIZE, 5)),
-                            float(round((pf.max_stop_loss_amount / TICK_SIZE) * TICK_VALUE, 5)),
+                            float(round(pf.tick_cash, 5)),
+                            float(round(pf.lowest_tick_cash, 5)),
                             float(TICK_SIZE),
                             float(TICK_VALUE),
                             json.dumps(trading_breaks),

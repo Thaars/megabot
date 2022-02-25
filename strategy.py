@@ -1,3 +1,6 @@
+import sys
+import warnings
+
 from definitions import *
 from strategies.price_breakout import PRICE_BREAKOUT
 
@@ -54,14 +57,18 @@ def price_mini_wicks(df, pf):
     po.prepare()
     return po.analyze()
 
-# todo: neue strategie:
-#   Candle Wicks dürfen beide max. 5 oder 10 Prozent vom Body lang sein
-#   Body darf nicht mehr als doppelt so groß sein wie der gößte Body der letzten 5 Candles
-#   Stop Loss: 1x Candle Body
-#   Target: 1x Candle Body
-#   Short + Long
-#   5m, 10m, 15m testen ggf. auch mal 1m oder 3m
-#     Gold: ggf. 1m oder 2m, weil bei 5m immer längere Wicks zu sehen waren
-#     BTC: scheint mit 5m ganz gut zu sein
-#   DF zusätzlich anreichern mit den letzten 5 Kerzen
 
+def price_quick_doji(df, pf):
+    from strategies.price_quick_doji import PRICE_QUICK_DOJI
+    po = PRICE_QUICK_DOJI(df=df, pf=pf)
+    po.prepare()
+    return po.analyze()
+
+
+# todo:
+#   neue strategie
+#   umbrella / gravestone
+#   beim doji mit langem Wick zur einen und (fast) keinem Wick zur anderen Seite zeigen eine Trendwende an
+#   der Kurs bewegt sich dann in Richtung des kleineren Wicks
+#   Target könnte die länge des längeren Wicks sein
+#   Stop Loss ebenfalls

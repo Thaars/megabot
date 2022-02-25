@@ -19,10 +19,6 @@ from pandas_finance import Equity
 import definitions
 from api_key import BINANCE_API_SECRET, BINANCE_API_KEY
 
-### CONSTANTS
-binsizes = {"1m": 1, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "2h": 120,"4h": 240, "1d": 1440}
-batch_size = 750
-
 binance_client = Client(api_key=BINANCE_API_KEY, api_secret=BINANCE_API_SECRET)
 
 
@@ -50,7 +46,7 @@ def get_all_binance(symbol, kline_size, save=True):
         data_df = pd.DataFrame()
         oldest_point, newest_point = minutes_of_new_data(symbol, kline_size, data_df, source="binance")
         delta_min = (newest_point - oldest_point).total_seconds()/60
-        available_data = math.ceil(delta_min/binsizes[kline_size])
+        available_data = math.ceil(delta_min/definitions.TIMEFRAME_MINUTE_MAPPING[kline_size])
         if oldest_point == datetime.strptime(definitions.HISTORICAL_DATA_FROM, '%d %b %Y'):
             print('Downloading all available %s data for %s. Be patient..!' % (kline_size, symbol))
         else:

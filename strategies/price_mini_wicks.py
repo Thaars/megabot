@@ -2,6 +2,17 @@ import zlib
 import pandas as pd
 from definitions import *
 
+"""
+Candle Wicks may both be max. 5 or 10 percent of the Body length
+Body must not be more than twice the size of the largest body of the last 5 candles
+Stop Loss: 0.1x Candle Body
+Target: 1x candle body
+Short + Long
+5m, 10m, 15m test if necessary also sometimes 1m or 3m
+   Gold: possibly 1m or 2m, because at 5m always longer wicks were seen
+   BTC: seems to be quite good with 5m
+"""
+
 
 # these classes will hold all the required information for their part of the strategy
 # it defines all possibilities and will generate random values based on that
@@ -63,27 +74,14 @@ class PRICE_MINI_WICKS:
                 target_short_limit_key=self.target_short_limit_key
             )
 
-            # todo: neue strategie:
-            #   Candle Wicks dürfen beide max. 5 oder 10 Prozent vom Body lang sein
-            #   Body darf nicht mehr als doppelt so groß sein wie der gößte Body der letzten 5 Candles
-            #   Stop Loss: 1x Candle Body oder Open von der aktuellen Candle
-            #   Target: 1x Candle Body
-            #   Short + Long
-            #   5m, 10m, 15m testen ggf. auch mal 1m oder 3m
-            #     Gold: ggf. 1m oder 2m, weil bei 5m immer längere Wicks zu sehen waren
-            #     BTC: scheint mit 5m ganz gut zu sein
-            #   DF zusätzlich anreichern mit den letzten 5 Kerzen
-
-
-
-
             # check for opening position
             # we need at least n candles
             if line > self.number_of_past_candles:
 
                 # compare with the current candle
                 body = abs(row['close'] - row['open'])
-                if row[f'largest_body_{self.number_of_past_candles}'] * self.min_prev_body_diff_factor < body \
+                if body > 0 \
+                        and row[f'largest_body_{self.number_of_past_candles}'] * self.min_prev_body_diff_factor < body \
                         < row[f'largest_body_{self.number_of_past_candles}'] * self.max_prev_body_diff_factor:
 
                     # bullish

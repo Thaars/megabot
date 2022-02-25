@@ -28,9 +28,6 @@ HISTORICAL_DATA_TO = '31 Dec 2021'
 START_DATE = date(2021, 1, 1)
 END_DATE = date(2021, 12, 31)
 
-TIMEFRAME = "5m"
-# SYMBOL = 'BTCUSDT'
-
 PRICE_BREAKOUT_CONFIG = {
     # long|short|both
     'trade_type': 'long',
@@ -91,13 +88,28 @@ PRICE_MINI_WICKS_CONFIG = {
     'target_short_limit_key': 'low',
 }
 
-# todo: Gold retest mit anderen Zeiträumen
+PRICE_QUICK_DOJI_CONFIG = {
+    # long|short|both
+    'trade_type': 'both',
+    # number of past candles to take into account for decisions
+    'max_body_in_percent': 15,
+    # the wicks may not be smaller than this value in percent of the candle body
+    'min_wick_in_percent': 1,
+    # use wicks as target and stop loss
+    'use_wicks_as_target_and_stop_loss': False,
+}
 
-USED_STRATEGY = 'price_breakout'
+# todo: retest mit anderen Zeiträumen
+# todo: testen von verschiedenen Parametern
+
+# USED_STRATEGY = 'price_breakout'
 # USED_STRATEGY = 'price_mini_wicks'
-SYMBOL = 'GC=F'
+USED_STRATEGY = 'price_quick_doji'
+TIMEFRAME = "1m"
+SYMBOL = 'BTCUSDT'
+# SYMBOL = 'GC=F'
 TICK_SIZE = 0.1
-TICK_VALUE = 10
+TICK_VALUE = 5
 # USE_TRADING_BREAKS = True
 USE_TRADING_BREAKS = False
 TRADING_BREAKS = [
@@ -113,3 +125,16 @@ TRADING_BREAKS = [
 
 # PLOT = True
 PLOT = False
+
+TIMEFRAME_MINUTE_MAPPING = {
+    '1m': 1,
+    '3m': 3,
+    '5m': 5,
+    '10m': 10,
+    '15m': 15,
+    '30m': 30,
+    '1h': 60,
+    '2h': 120,
+    '4h': 240,
+    "1d": 1440,
+}

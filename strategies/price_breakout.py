@@ -2,6 +2,11 @@ import zlib
 import pandas as pd
 import definitions
 
+# todo: add description
+"""
+ 
+"""
+
 
 # these classes will hold all the required information for their part of the strategy
 # it defines all possibilities and will generate random values based on that
@@ -72,7 +77,8 @@ class PRICE_BREAKOUT:
 
                 # compare with the current candle - the current must be n times greater
                 body = abs(row['close'] - row['open'])
-                if row[f'largest_body_{self.number_of_past_candles}'] * self.min_prev_body_diff_factor \
+                if body > 0 \
+                        and row[f'largest_body_{self.number_of_past_candles}'] * self.min_prev_body_diff_factor \
                         < body \
                         < row[f'largest_body_{self.number_of_past_candles}'] * self.max_prev_body_diff_factor:
 

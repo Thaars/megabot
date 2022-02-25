@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 
 from definitions import *
 import math
@@ -8,6 +8,8 @@ class Portfolio:
     def __init__(self, df, starting_amount, *args, **kwargs):
         self.orders = list()
         self.cash = starting_amount
+        self.tick_cash = 0
+        self.lowest_tick_cash = 0
         self.ticks = 0
         self.winning_ticks = 0
         self.losing_ticks = 0
@@ -24,7 +26,6 @@ class Portfolio:
         self.market_start_amount = 0
         self.market_end_amount = 0
         self.df = df
-        self.max_stop_loss_amount = 0
 
     def undo_all_open(self):
         # this is done by undoing the last openings
@@ -35,8 +36,8 @@ class Portfolio:
     def is_currently_a_trading_break(self, current_time):
         if USE_TRADING_BREAKS:
             for trading_break in TRADING_BREAKS:
-                break_from_time = datetime.strptime(trading_break['from'], '%H:%M').time()
-                break_to_time = datetime.strptime(trading_break['to'], '%H:%M').time()
+                break_from_time = datetime.datetime.strptime(trading_break['from'], '%H:%M').time()
+                break_to_time = datetime.datetime.strptime(trading_break['to'], '%H:%M').time()
                 if break_from_time < current_time < break_to_time:
                     return True
         return False
@@ -49,7 +50,7 @@ class Portfolio:
             target=None,
             stop_loss=None,
             target_2=None,
-            trade_type='long'
+            trade_type='long',
     ):
         # check fro trading breaks
         if self.is_currently_a_trading_break(current_time=index.time()):
@@ -59,6 +60,16 @@ class Portfolio:
         rounding = len(str(current_price)) - 2
         units = round_down(self.cash / current_price, rounding)
         commission = round(current_price * units * COMMISSION, 2)
+
+        # at this point we have a special target rule
+        # it's a string separated by `:`
+        if str(target).__contains__(':'):
+            target_type, target_when, target_key = target.split(':')
+            if target_type == 'candle' and target_when == 'next':
+                target = {
+                    'when': index + datetime.timedelta(minutes=TIMEFRAME_MINUTE_MAPPING[TIMEFRAME]),
+                    'key': target_key
+                }
 
         if units > 0 and self.cash > 1:
             # only buy, when unit per share is buyable for remaining cash
@@ -90,15 +101,15 @@ class Portfolio:
             return False
 
     def close_position(
-            self,
-            line,
-            index,
-            row,
-            undo_all_open=False,
-            stop_loss_long_limit_key='low',
-            target_long_limit_key='high',
-            stop_loss_short_limit_key='high',
-            target_short_limit_key='low'
+        self,
+        line,
+        index,
+        row,
+        undo_all_open=False,
+        stop_loss_long_limit_key='low',
+        target_long_limit_key='high',
+        stop_loss_short_limit_key='high',
+        target_short_limit_key='low'
     ):
         if undo_all_open:
             # the end of the tested timeframe has arrived
@@ -107,18 +118,19 @@ class Portfolio:
         for order in self.orders:
             # bullish
             if order['trade_type'] == 'long':
-                # check fro trading breaks
+                # check for trading breaks
                 if self.is_currently_a_trading_break(current_time=index.time()):
                     self.close_order(order, row['close'], index)
                 # stop loss
                 elif row[stop_loss_long_limit_key] <= order['stop_loss']:
-                    current_stop_loss_amount = order['buying_price'] - order['stop_loss']
-                    if current_stop_loss_amount > self.max_stop_loss_amount:
-                        self.max_stop_loss_amount = current_stop_loss_amount
                     self.close_order(order, order['stop_loss'], index)
-                # target
-                elif row[target_long_limit_key] >= order['target']:
+                # target simple
+                elif not isinstance(order['target'], dict) and row[target_long_limit_key] >= order['target']:
                     self.close_order(order, order['target'], index)
+                # target special
+                elif isinstance(order['target'], dict):
+                    if 'when' in order['target'] and order['target']['when'] == index:
+                        self.close_order(order, row[order['target']['key']], index)
             # bearish
             if order['trade_type'] == 'short':
                 # check fro trading breaks
@@ -126,13 +138,14 @@ class Portfolio:
                     self.close_order(order, row['close'], index)
                 # stop loss
                 elif row[stop_loss_short_limit_key] >= order['stop_loss']:
-                    current_stop_loss_amount = order['stop_loss'] - order['buying_price']
-                    if current_stop_loss_amount > self.max_stop_loss_amount:
-                        self.max_stop_loss_amount = current_stop_loss_amount
                     self.close_order(order, order['stop_loss'], index)
-                # target
-                elif row[target_short_limit_key] <= order['target']:
+                # target simple
+                elif not isinstance(order['target'], dict) and row[target_short_limit_key] <= order['target']:
                     self.close_order(order, order['target'], index)
+                # target special
+                elif isinstance(order['target'], dict):
+                    if 'when' in order['target'] and order['target']['when'] == index:
+                        self.close_order(order, row[order['target']['key']], index)
             return True
         return False
 
@@ -141,6 +154,9 @@ class Portfolio:
         if order['trade_type'] == 'long':
             price_diff = price - order['buying_price']
             current_ticks = math.floor(price_diff / TICK_SIZE)
+            self.tick_cash += current_ticks * TICK_VALUE
+            if self.tick_cash < self.lowest_tick_cash:
+                self.lowest_tick_cash = self.tick_cash
             if price > order['buying_price']:
                 self.winning[order['order_id']] += 1
                 self.winning_ticks += current_ticks
@@ -155,6 +171,9 @@ class Portfolio:
         if order['trade_type'] == 'short':
             price_diff = order['buying_price'] - price
             current_ticks = math.floor(price_diff / TICK_SIZE)
+            self.tick_cash += current_ticks * TICK_VALUE
+            if self.tick_cash < self.lowest_tick_cash:
+                self.lowest_tick_cash = self.tick_cash
             diff = order['units'] * order['buying_price'] - order['units'] * price
             if price < order['buying_price']:
                 self.winning[order['order_id']] += 1
