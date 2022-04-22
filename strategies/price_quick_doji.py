@@ -9,6 +9,12 @@ only the next candle is traded with open and close price (this can be configured
 or the wicks determine target and stop loss 
 """
 
+# todo: mögliche indikatoren
+#   kurzer Docht zeigt Richtung der nächsten Kerze an - nur nächste Kerze handlen
+#   langer Docht zeigt Richtung der nächsten Kerze an - nur nächste Kerze handeln
+#   vorherige Kerze zeigt Richtung der nächsten Kerze an - nur nächste Kerze handeln
+#   Verhältnis zwischen langem und kurzem Docht darf nicht fast gleich sein
+
 
 # these classes will hold all the required information for their part of the strategy
 # it defines all possibilities and will generate random values based on that
@@ -29,6 +35,8 @@ class PRICE_QUICK_DOJI:
         self.max_body_in_percent = self.config['max_body_in_percent']
         # the wicks may not be smaller than this value in percent of the candle body
         self.min_wick_in_percent = self.config['min_wick_in_percent']
+        # the wicks must be differ from each other for at least n percent
+        self.wick_diff_in_percent = self.config['wick_diff_in_percent']
         # use wicks as target and stop loss
         self.use_wicks_as_target_and_stop_loss = self.config['use_wicks_as_target_and_stop_loss']
 
@@ -56,6 +64,12 @@ class PRICE_QUICK_DOJI:
 
             if body > 0 and candle > 0 and body * 100 / candle <= self.max_body_in_percent:
 
+                # todo: erwische ich hier alles?
+                #   wenn der kleinere docht oben ist, wäre das theoretisch bullish,
+                #   wenn aber gleichzeitig close < open ist, fällt das in bearish
+                #   und würde dort eigentlich die falsche richtung vorgeben
+                #   das müsste mal mit parametern getestet werden, vielleicht funktioniert das ja nur aufgrund des logikfehlers
+
                 if row['close'] > row['open']:
                     upper_shadow = row['high'] - row['close']
                     lower_shadow = row['open'] - row['low']
@@ -82,7 +96,10 @@ class PRICE_QUICK_DOJI:
         if row['close'] > row['open']:
             # the upper shadow may not be greater than n% of the body
             upper_shadow = row['high'] - row['close']
-            if ((upper_shadow * 100) / body) > self.min_wick_in_percent:
+            # and the shadows must differ from each other for at least n%
+            lower_shadow = row['open'] - row['low']
+            diff = abs(((upper_shadow * 100) / body) - ((lower_shadow * 100) / body))
+            if ((upper_shadow * 100) / body) > self.min_wick_in_percent and diff > self.wick_diff_in_percent:
                 # open long position
                 target = 'candle:next:close'
                 stop_loss = row['low']
@@ -104,7 +121,10 @@ class PRICE_QUICK_DOJI:
         if row['close'] < row['open']:
             # the lower shadow may not be greater than n% of the body
             lower_shadow = row['close'] - row['low']
-            if ((lower_shadow * 100) / body) > self.min_wick_in_percent:
+            # and the shadows must differ from each other for at least n%
+            upper_shadow = row['high'] - row['open']
+            diff = abs(((upper_shadow * 100) / body) - ((lower_shadow * 100) / body))
+            if ((lower_shadow * 100) / body) > self.min_wick_in_percent and diff > self.wick_diff_in_percent:
                 # open short position
                 target = 'candle:next:close'
                 stop_loss = row['high']

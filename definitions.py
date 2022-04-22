@@ -3,9 +3,16 @@
 
 __author__ = 'Jan Olschewski, Ingo Volkmann'
 
-from datetime import date
+import datetime
 
 from strategies.price_breakout import PRICE_BREAKOUT
+
+APP_VERSION = "0.0.1"
+
+TRADOVATE_URL = "https://live.tradovateapi.com/v1"
+TRADOVATE_WEBSOCKET_URL = "wss://md.tradovateapi.com/v1/websocket"
+# TRADOVATE_MARKET_DATA_URL = "https://demo.tradovateapi.com/v1"
+TRADOVATE_SYMBOL = "MESM2"
 
 MYSQL_HOST = "localhost"
 MYSQL_USER = "root"
@@ -17,16 +24,19 @@ LIMIT_LEVEL = 105
 STARTING_AMOUNT = 100
 DAYS = 365
 INDICATORS = list()
-COMMISSION = 0.000 # 0,1% at binance
+# 0,1% at binance
+COMMISSION_FACTOR = 0.001
+# $0.25 at Tradovate
+COMMISSION_VALUE = 0.25
 
-# HISTORICAL_DATA_FROM = '8 Dec 2021'
-# HISTORICAL_DATA_TO = '17 Feb 2022'
-# START_DATE = date(2021, 12, 8)
-# END_DATE = date(2022, 2, 17)
-HISTORICAL_DATA_FROM = '3 Jan 2021'
-HISTORICAL_DATA_TO = '31 Dec 2021'
-START_DATE = date(2021, 1, 1)
-END_DATE = date(2021, 12, 31)
+HISTORICAL_DATA_FROM = '8 Dec 2021'
+HISTORICAL_DATA_TO = '17 Feb 2022'
+START_DATE = datetime.datetime(year=2022, month=2, day=1, hour=0, minute=0)
+END_DATE = datetime.datetime(year=2022, month=2, day=2, hour=0, minute=0)
+# HISTORICAL_DATA_FROM = '3 Jan 2021'
+# HISTORICAL_DATA_TO = '31 Dec 2021'
+# START_DATE = datetime.datetime(year=2021, month=1, day=3, hour=0, minute=0)
+# END_DATE = datetime.datetime(year=2021, month=1, day=31, hour=23, minute=59)
 
 PRICE_BREAKOUT_CONFIG = {
     # long|short|both
@@ -95,10 +105,15 @@ PRICE_QUICK_DOJI_CONFIG = {
     'max_body_in_percent': 15,
     # the wicks may not be smaller than this value in percent of the candle body
     'min_wick_in_percent': 1,
+    # the wicks must be differ from each other for at least n percent
+    'wick_diff_in_percent': 40,
     # use wicks as target and stop loss
     'use_wicks_as_target_and_stop_loss': False,
 }
 
+# todo: commission
+#   cash commission
+#   tick commission - stimmen tick size und tick value und die logik dahinter?
 # todo: retest mit anderen Zeiträumen
 # todo: testen von verschiedenen Parametern
 
@@ -107,20 +122,34 @@ PRICE_QUICK_DOJI_CONFIG = {
 USED_STRATEGY = 'price_quick_doji'
 TIMEFRAME = "1m"
 SYMBOL = 'BTCUSDT'
+# SYMBOL = 'BTC0925'
 # SYMBOL = 'GC=F'
-TICK_SIZE = 0.1
-TICK_VALUE = 5
-# USE_TRADING_BREAKS = True
+TICK_SIZE = 1
+TICK_VALUE = 1
 USE_TRADING_BREAKS = False
 TRADING_BREAKS = [
+    # Binance Funding - no open positions, no fees and no funding
+    # only needed for perpetual contracts
     {
-        'from': '16:00',
-        'to': '18:00'
+        'from': '00:00',
+        'to': '00:05'
     },
     {
-        'from': '08:00',
-        'to': '09:00'
+        'from': '07:55',
+        'to': '08:05'
+    },
+    {
+        'from': '15:55',
+        'to': '16:05'
     }
+    # {
+    #     'from': '16:00',
+    #     'to': '18:00'
+    # },
+    # {
+    #     'from': '08:00',
+    #     'to': '09:00'
+    # }
 ]
 
 # PLOT = True
@@ -138,3 +167,5 @@ TIMEFRAME_MINUTE_MAPPING = {
     '4h': 240,
     "1d": 1440,
 }
+
+

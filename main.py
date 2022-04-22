@@ -8,7 +8,7 @@ import strategy
 import dataframe
 import plot
 import indicator
-from api import get_all_binance, get_stock_data
+from api import get_all_binance, get_stock_data, get_tradovate_data
 from db import DB
 from portfolio import Portfolio
 from definitions import *
@@ -33,45 +33,50 @@ def worker():
 
 def main():
     db = DB().db
-    filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
-    # filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
-    pf, config = test(filename, definitions.PLOT)
-    save_strategy(db, pf, config)
-    print(f"*********************************************")
-    print(f"Config: {json.dumps(config)}")
-    print(f"Symbol: {SYMBOL}")
-    print(f"Timeframe: {TIMEFRAME}")
-    print(f"Trades: ")
-    print(f"\t winning - {pf.winning}")
-    print(f"\t losing - {pf.losing}")
-    print(f"\t winners - {pf.winners}")
-    print(f"\t losers - {pf.losers}")
-    print(f"Performance: ")
-    print(f'\t market: {pf.get_market_performance()}')
-    print(f'\t overall: {pf.get_performance()}')
-    print(f"Total: ")
-    print(f'\t cash: {round(pf.cash, 2)}')
-    print(f'\t ticks: {round(pf.ticks, 5)}')
-    print(f'\t winning ticks: {round(pf.winning_ticks, 5)}')
-    print(f'\t losing ticks: {round(pf.losing_ticks, 5)}')
-    print(f'\t tick cash: {round(pf.tick_cash, 5)}')
-    print(f'\t lowest tick cash: {round(pf.lowest_tick_cash, 5)}')
-    return
-    # workers = []
-    # if __name__ == '__main__':
-    #     # for limit in frange(103, 105, 0.5):
-    #     w = multiprocessing.Process(
-    #         target=worker,
-    #         args=()
-    #     )
-    #     workers.append(w)
-    #
-    #     for w in workers:
-    #         w.start()
-    #
-    #     for w in workers:
-    #         w.join()
-    #     print(1)
+    get_tradovate_data()
+    # filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
+    # # filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
+    # pf, config = test(filename, definitions.PLOT)
+    # save_strategy(db, pf, config)
+    # print(f"*********************************************")
+    # print(f"Config: {json.dumps(config)}")
+    # print(f"Symbol: {SYMBOL}")
+    # print(f"Timeframe: {TIMEFRAME}")
+    # print(f"Trades: ")
+    # print(f"\t winning - {pf.winning}")
+    # print(f"\t losing - {pf.losing}")
+    # print(f"\t winners - {pf.winners}")
+    # print(f"\t losers - {pf.losers}")
+    # print(f"\t largest loser series - {pf.largest_loser_series}")
+    # print(f"Performance: ")
+    # print(f'\t market: {pf.get_market_performance()}')
+    # print(f'\t overall: {pf.get_performance()}')
+    # print(f"Total: ")
+    # print(f'\t cash: {round(pf.cash, 2)}')
+    # print(f'\t ticks: {round(pf.ticks, 5)}')
+    # print(f'\t winning ticks: {round(pf.winning_ticks, 5)}')
+    # print(f'\t losing ticks: {round(pf.losing_ticks, 5)}')
+    # print(f'\t tick cash: {round(pf.tick_cash, 5)}')
+    # print(f'\t lowest tick cash: {round(pf.lowest_tick_cash, 5)}')
+    # print(f'\t max stop loss amount: {round(pf.max_stop_loss_amount, 5)}')
+    # print(f'\t max stop loss ticks: {round(pf.max_stop_loss_amount / TICK_SIZE, 5)}')
+    # print(f'\t max stop loss margin: {round(pf.max_stop_loss_amount / TICK_SIZE * TICK_VALUE, 5)}')
+    # return
+    # # workers = []
+    # # if __name__ == '__main__':
+    # #     # for limit in frange(103, 105, 0.5):
+    # #     w = multiprocessing.Process(
+    # #         target=worker,
+    # #         args=()
+    # #     )
+    # #     workers.append(w)
+    # #
+    # #     for w in workers:
+    # #         w.start()
+    # #
+    # #     for w in workers:
+    # #         w.join()
+    # #     print(1)
 
 
 def test(filename, chart=False):
@@ -79,7 +84,7 @@ def test(filename, chart=False):
 
     df = indicator.last_5_10_15_20_candles(df, filename)
 
-    df = df.loc[f'{definitions.START_DATE} 00:00:00-00:00':f'{definitions.END_DATE} 23:00:00-00:00']
+    df = df.loc[f'{definitions.START_DATE}':f'{definitions.END_DATE}']
 
     pf = Portfolio(df, STARTING_AMOUNT)
     # df, pf, config = strategy['price_breakout'](df, pf)
@@ -109,7 +114,7 @@ def save_strategy(db, pf, config):
     exact_hash_values = general_hash_values + [
         f'{START_DATE}',
         f'{END_DATE}',
-        COMMISSION,
+        COMMISSION_FACTOR,
         STARTING_AMOUNT,
         json.dumps(trading_breaks),
     ]
@@ -128,6 +133,7 @@ def save_strategy(db, pf, config):
                             "`losing`,"
                             "`winners`,"
                             "`losers`,"
+                            "`largest_loser_series`,"
                             "`starts_at`,"
                             "`ends_at`,"
                             "`ticks`,"
@@ -135,14 +141,18 @@ def save_strategy(db, pf, config):
                             "`losing_ticks`,"
                             "`tick_cash`,"
                             "`lowest_tick_cash`,"
+                            "`max_stop_loss_amount`,"
+                            "`max_stop_loss_ticks`,"
+                            "`max_stop_loss_margin`,"
                             "`tick_size`,"
                             "`tick_value`,"
                             "`trading_breaks`,"
-                            "`commission`,"
+                            "`commission_factor`,"
+                            "`commission_value`,"
                             "`start_cash`,"
                             "`end_cash`"
                           ") values("
-                          "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                          "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
                           ")", [(
                             zlib.adler32(json.dumps(general_hash_values).encode('UTF-8')) & 0xffffffff,
                             zlib.adler32(json.dumps(exact_hash_values).encode('UTF-8')) & 0xffffffff,
@@ -158,6 +168,7 @@ def save_strategy(db, pf, config):
                             json.dumps(pf.losing),
                             json.dumps(pf.winners),
                             json.dumps(pf.losers),
+                            json.dumps(pf.largest_loser_series),
                             f'{START_DATE}',
                             f'{END_DATE}',
                             float(round(pf.ticks, 5)),
@@ -165,10 +176,14 @@ def save_strategy(db, pf, config):
                             float(round(pf.losing_ticks, 5)),
                             float(round(pf.tick_cash, 5)),
                             float(round(pf.lowest_tick_cash, 5)),
+                            float(round(pf.max_stop_loss_amount, 5)),
+                            float(round(pf.max_stop_loss_amount / TICK_SIZE, 5)),
+                            float(round(pf.max_stop_loss_amount / TICK_SIZE * TICK_VALUE, 5)),
                             float(TICK_SIZE),
                             float(TICK_VALUE),
                             json.dumps(trading_breaks),
-                            float(COMMISSION),
+                            float(COMMISSION_FACTOR),
+                            float(COMMISSION_VALUE),
                             float(STARTING_AMOUNT),
                             float(round(pf.cash, 2))
                           )])

@@ -19,19 +19,30 @@ class Portfolio:
         }
         self.winners = list()
         self.losers = list()
+        self.loser_series = {
+            'total_cash': 0,
+            'series': list()
+        }
+        self.largest_loser_series = {
+            'total_cash': 0,
+            'series': list()
+        }
         self.losing = {
             0: 0,
             1: 0
         }
         self.market_start_amount = 0
         self.market_end_amount = 0
+        self.max_stop_loss_amount = 0
         self.df = df
 
     def undo_all_open(self):
         # this is done by undoing the last openings
         for order in self.orders:
-            commission = round(order['buying_price'] * order['units'] * COMMISSION, 2)
-            self.cash += order['units'] * order['buying_price'] + commission
+            commission_factor = round(order['buying_price'] * order['units'] * COMMISSION_FACTOR, 2)
+            commission_value = round(COMMISSION_VALUE, 2)
+            self.cash += order['units'] * order['buying_price'] + commission_factor
+            self.tick_cash += commission_value
 
     def is_currently_a_trading_break(self, current_time):
         if USE_TRADING_BREAKS:
@@ -59,7 +70,8 @@ class Portfolio:
         # trade only buy, when enough cash is available
         rounding = len(str(current_price)) - 2
         units = round_down(self.cash / current_price, rounding)
-        commission = round(current_price * units * COMMISSION, 2)
+        commission_factor = round(current_price * units * COMMISSION_FACTOR, 2)
+        commission_value = round(COMMISSION_VALUE, 2)
 
         # at this point we have a special target rule
         # it's a string separated by `:`
@@ -75,7 +87,8 @@ class Portfolio:
             # only buy, when unit per share is buyable for remaining cash
             if units * current_price < self.cash:
                 # print(f"ID:{len(self.orders)}, CREATE {units} units at {current_price}")
-                self.cash -= units * current_price + commission
+                self.cash -= units * current_price + commission_factor
+                self.tick_cash -= commission_value
                 order1 = dict(order_id=len(self.orders),
                               buying_price=current_price,
                               units=units,
@@ -124,6 +137,9 @@ class Portfolio:
                 # stop loss
                 elif row[stop_loss_long_limit_key] <= order['stop_loss']:
                     self.close_order(order, order['stop_loss'], index)
+                    stop_loss_diff = order['buying_price'] - order['stop_loss']
+                    if stop_loss_diff > self.max_stop_loss_amount:
+                        self.max_stop_loss_amount = stop_loss_diff
                 # target simple
                 elif not isinstance(order['target'], dict) and row[target_long_limit_key] >= order['target']:
                     self.close_order(order, order['target'], index)
@@ -139,6 +155,9 @@ class Portfolio:
                 # stop loss
                 elif row[stop_loss_short_limit_key] >= order['stop_loss']:
                     self.close_order(order, order['stop_loss'], index)
+                    stop_loss_diff = order['stop_loss'] - order['buying_price']
+                    if stop_loss_diff > self.max_stop_loss_amount:
+                        self.max_stop_loss_amount = stop_loss_diff
                 # target simple
                 elif not isinstance(order['target'], dict) and row[target_short_limit_key] <= order['target']:
                     self.close_order(order, order['target'], index)
@@ -146,13 +165,16 @@ class Portfolio:
                 elif isinstance(order['target'], dict):
                     if 'when' in order['target'] and order['target']['when'] == index:
                         self.close_order(order, row[order['target']['key']], index)
-            return True
-        return False
+        if self.loser_series['total_cash'] < self.largest_loser_series['total_cash']:
+            # remember as largest
+            self.largest_loser_series['total_cash'] = self.loser_series['total_cash']
+            self.largest_loser_series['series'] = self.loser_series['series']
 
     def close_order(self, order, price, index):
         # bullish
         if order['trade_type'] == 'long':
             price_diff = price - order['buying_price']
+            # round ticks down
             current_ticks = math.floor(price_diff / TICK_SIZE)
             self.tick_cash += current_ticks * TICK_VALUE
             if self.tick_cash < self.lowest_tick_cash:
@@ -161,15 +183,21 @@ class Portfolio:
                 self.winning[order['order_id']] += 1
                 self.winning_ticks += current_ticks
                 self.winners.append(round(price_diff, 2))
+                # reset loser series
+                self.loser_series['total_cash'] = 0
+                self.loser_series['series'] = list()
             else:
                 self.losing[order['order_id']] += 1
                 self.losing_ticks += current_ticks
                 self.losers.append(round(price_diff, 2))
+                self.loser_series['total_cash'] += price_diff
+                self.loser_series['series'].append(round(price_diff, 2))
             self.cash += order['units'] * price
             self.ticks += current_ticks
         # bearish
         if order['trade_type'] == 'short':
             price_diff = order['buying_price'] - price
+            # round ticks down
             current_ticks = math.floor(price_diff / TICK_SIZE)
             self.tick_cash += current_ticks * TICK_VALUE
             if self.tick_cash < self.lowest_tick_cash:
@@ -179,15 +207,22 @@ class Portfolio:
                 self.winning[order['order_id']] += 1
                 self.winning_ticks += current_ticks
                 self.winners.append(round(price_diff, 2))
+                # reset loser series
+                self.loser_series['total_cash'] = 0
+                self.loser_series['series'] = list()
             else:
                 self.losing[order['order_id']] += 1
                 self.losing_ticks += current_ticks
                 self.losers.append(round(price_diff, 2))
+                self.loser_series['total_cash'] += price_diff
+                self.loser_series['series'].append(round(price_diff, 2))
             self.cash += (order['units'] * order['buying_price']) + diff
             self.ticks += current_ticks
         # all
-        commission = round(order['buying_price'] * order['units'] * COMMISSION, 2)
-        self.cash -= commission
+        commission_factor = round(order['buying_price'] * order['units'] * COMMISSION_FACTOR, 2)
+        commission_value = round(COMMISSION_VALUE, 2)
+        self.cash -= commission_factor
+        self.tick_cash -= commission_value
         self.orders = [o for o in self.orders if o != order]
         self.df.loc[index, 'close_order'] = price
 
@@ -198,7 +233,7 @@ class Portfolio:
     #     order = order[0]
     #
     #     self.cash += order['units'] * price
-    #     comission = round(order['buying_price'] * order['units'] * COMMISSION, 2)
+    #     comission = round(order['buying_price'] * order['units'] * COMMISSION_FACTOR, 2)
     #     self.cash -= comission
     #
     #     self.orders = [x for x in self.orders if order_id != x.get('order_id')]

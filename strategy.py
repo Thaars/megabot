@@ -65,10 +65,19 @@ def price_quick_doji(df, pf):
     return po.analyze()
 
 
+
 # todo:
-#   neue strategie
-#   umbrella / gravestone
-#   beim doji mit langem Wick zur einen und (fast) keinem Wick zur anderen Seite zeigen eine Trendwende an
-#   der Kurs bewegt sich dann in Richtung des kleineren Wicks
-#   Target könnte die länge des längeren Wicks sein
-#   Stop Loss ebenfalls
+#   neue Strategie:
+#     dragonfly / gravestone
+#     rote kerze: low und close sind fast gleich, kerzenkörper ist kaum vorhanden und max. 10 - 15% der gesamten kerze
+#     grüne kerze: high und close sind fast gleich, kerzenkörper ist kaum vorhanden und max. 10 - 15% der gesamten kerze
+#     beim doji mit langem Wick zur einen und (fast) keinem Wick zur anderen Seite zeigen eine Trendwende an
+#     der Kurs bewegt sich dann in Richtung des kleineren Wicks
+#     Target könnte die länge des längeren Wicks sein
+#     Stop Loss ebenfalls
+#     oder die nächste Kerze handeln
+
+# todo:
+#   weitere Ideen
+#     Double Doji - nach Muster suchen
+#     Doji und die vorherigen und nächsten 5 Kerzen betrachten - nach Muster suchen

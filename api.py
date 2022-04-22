@@ -5,24 +5,34 @@ __author__ = 'Jan Olschewski, Ingo Volkmann'
 
 
 # IMPORTS
+import json
+
 import pandas as pd
 import math
 import os.path
 import time
+
+import asyncio
+import websockets
 from binance.client import Client
 from datetime import timedelta, datetime, date
 from dateutil import parser
 import yfinance as yf
 from pandas_finance import Equity
 
-### API
+# API
 import definitions
-from api_key import BINANCE_API_SECRET, BINANCE_API_KEY
+from api_key import *
+
+from tradovate.tradovate_api_client import Client as TradovateClient
+from tradovate.tradovate_api_client import AuthenticatedClient
+from tradovate.tradovate_api_client.api.authentication import access_token_request
+from tradovate.tradovate_api_client.models import AccessTokenRequest
 
 binance_client = Client(api_key=BINANCE_API_KEY, api_secret=BINANCE_API_SECRET)
 
 
-### FUNCTIONS
+# FUNCTIONS
 def minutes_of_new_data(symbol, kline_size, data, source):
     old = None
     new = None
@@ -98,3 +108,86 @@ def get_stock_data(symbol, timeframe="5m"):
             # df.set_index('datetime', inplace=True)
             df.to_csv(f'{filename}', index=True, sep=";")
     return filename
+
+
+def get_tradovate_data():
+
+    tradovate_client = TradovateClient(base_url=definitions.TRADOVATE_URL)
+
+    access_token_response = access_token_request.sync(
+        client=tradovate_client,
+        json_body=AccessTokenRequest(
+            name=TRADOVATE_NAME,
+            password=TRADOVATE_API_PW,
+            app_id=TRADOVATE_APP_ID,
+            app_version=definitions.APP_VERSION,
+            device_id=TRADOVATE_API_DEVICE_ID,
+            cid=TRADOVATE_API_CID,
+            sec=TRADOVATE_API_SECRET
+        )
+    )
+    access_token = access_token_response.access_token
+    authenticated_client = AuthenticatedClient(tradovate_client, token=access_token)
+
+    asyncio.run(open_ws(access_token))
+
+
+async def heartbeat(websocket):
+    await websocket.send('[]')
+
+
+async def chart(websocket, request_number):
+    body = {
+        "symbol": definitions.TRADOVATE_SYMBOL,
+        "chartDescription": {
+            "underlyingType": "MinuteBar",
+            "elementSize": 30,
+            "elementSizeUnit": "UnderlyingUnits",
+            "withHistogram": False,
+        },
+        "timeRange": {
+            "asMuchAsElements": 20
+        }
+    }
+    await websocket.send(f"md/getChart\n{request_number}\n\n{json.dumps(body)}")
+
+
+async def subscribe_quote(websocket, request_number):
+    body = {
+        "symbol": definitions.TRADOVATE_SYMBOL
+    }
+    await websocket.send(f"md/subscribeQuote\n{request_number}\n\n{json.dumps(body)}")
+
+
+async def receive(websocket):
+    while True:
+        response = await websocket.recv()
+        print(f"receive: {response}")
+
+
+async def open_ws(access_token):
+    request_number = 1
+    async with websockets.connect(definitions.TRADOVATE_WEBSOCKET_URL) as websocket:
+
+        asyncio.create_task(receive(websocket), name='receive')
+
+        await websocket.send(f"authorize\n{request_number}\n\n{access_token}")
+        request_number += 1
+
+        # asyncio.create_task(chart(websocket, request_number), name='chart')
+        # request_number += 1
+        # asyncio.create_task(subscribe_quote(websocket, request_number), name='subscribe_quote')
+        # request_number += 1
+
+        while True:
+
+            # asyncio.create_task(chart(websocket, request_number), name='chart')
+            # request_number += 1
+
+            await asyncio.gather(
+                asyncio.create_task(heartbeat(websocket), name='heartbeat'),
+                asyncio.sleep(2.5)
+            )
+            # await asyncio.sleep(2.5)
+            # asyncio.create_task(heartbeat(websocket), name='heartbeat')
+
