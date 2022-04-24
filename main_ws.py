@@ -69,7 +69,7 @@ async def heartbeat(websocket):
 
 async def get_chart(websocket, request_id):
     body = {
-        "symbol": definitions.TRADOVATE_SYMBOL,
+        "symbol": definitions.SYMBOL,
         "chartDescription": {
             "underlyingType": "MinuteBar",
             "elementSize": 1,
@@ -77,8 +77,8 @@ async def get_chart(websocket, request_id):
             "withHistogram": False,
         },
         "timeRange": {
-            "asFarAsTimestamp": "2022-04-07T15:54Z",
-            "closestTimestamp": "2022-04-07T15:55Z",
+            "asFarAsTimestamp": "2022-01-01T00:00Z",
+            "closestTimestamp": "2022-01-20T00:00Z",
             # "closestTickId": 123,
             # "asMuchAsElements": 66
         }
@@ -100,7 +100,7 @@ async def get_chart(websocket, request_id):
 async def subscribe_quote(websocket, request_id):
     await asyncio.sleep(2)
     body = {
-        "symbol": definitions.TRADOVATE_SYMBOL
+        "symbol": definitions.SYMBOL
     }
     message = [
         "md/subscribeQuote",
@@ -147,7 +147,7 @@ async def receive(websocket):
                                 for ix, item in enumerate(bars):
 
                                     result_list = [
-                                        definitions.TRADOVATE_SYMBOL,
+                                        definitions.SYMBOL,
                                         item['timestamp'].replace('T', ' ').replace('Z', ':00'),
                                         float(item['open']),
                                         float(item['high']),
@@ -166,14 +166,14 @@ async def receive(websocket):
                                     db = DB().db
                                     db_cursor = db.cursor(dictionary=True)
                                     db_cursor.execute(
-                                        "select * from ticks where `hash` = %s",
+                                        "select * from minute_bars where `hash` = %s",
                                         [result_hash]
                                     )
                                     db_cursor.fetchone()
                                     if db_cursor.rowcount == -1:
                                         db_cursor = db.cursor()
                                         db_cursor.execute(
-                                            "insert into ticks ("
+                                            "insert into minute_bars ("
                                                 "`symbol`,"
                                                 "`timestamp`,"
                                                 "`open`,"

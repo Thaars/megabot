@@ -12,7 +12,6 @@ APP_VERSION = "0.0.1"
 TRADOVATE_URL = "https://live.tradovateapi.com/v1"
 TRADOVATE_WEBSOCKET_URL = "wss://md.tradovateapi.com/v1/websocket"
 # TRADOVATE_MARKET_DATA_URL = "https://demo.tradovateapi.com/v1"
-TRADOVATE_SYMBOL = "MESM2"
 
 MYSQL_HOST = "localhost"
 MYSQL_USER = "root"
@@ -25,14 +24,14 @@ STARTING_AMOUNT = 100
 DAYS = 365
 INDICATORS = list()
 # 0,1% at binance
-COMMISSION_FACTOR = 0.001
+COMMISSION_FACTOR = 0.000
 # $0.25 at Tradovate
 COMMISSION_VALUE = 0.25
 
-HISTORICAL_DATA_FROM = '8 Dec 2021'
-HISTORICAL_DATA_TO = '17 Feb 2022'
-START_DATE = datetime.datetime(year=2022, month=2, day=1, hour=0, minute=0)
-END_DATE = datetime.datetime(year=2022, month=2, day=2, hour=0, minute=0)
+HISTORICAL_DATA_FROM = '15 Mar 2022'
+HISTORICAL_DATA_TO = '15 Apr 2022'
+START_DATE = datetime.datetime(year=2022, month=1, day=1, hour=0, minute=0)
+END_DATE = datetime.datetime(year=2022, month=4, day=20, hour=0, minute=0)
 # HISTORICAL_DATA_FROM = '3 Jan 2021'
 # HISTORICAL_DATA_TO = '31 Dec 2021'
 # START_DATE = datetime.datetime(year=2021, month=1, day=3, hour=0, minute=0)
@@ -117,40 +116,33 @@ PRICE_QUICK_DOJI_CONFIG = {
 # todo: retest mit anderen Zeiträumen
 # todo: testen von verschiedenen Parametern
 
-# USED_STRATEGY = 'price_breakout'
+USED_STRATEGY = 'price_breakout'
 # USED_STRATEGY = 'price_mini_wicks'
-USED_STRATEGY = 'price_quick_doji'
+# USED_STRATEGY = 'price_quick_doji'
 TIMEFRAME = "1m"
-SYMBOL = 'BTCUSDT'
-# SYMBOL = 'BTC0925'
-# SYMBOL = 'GC=F'
-TICK_SIZE = 1
-TICK_VALUE = 1
-USE_TRADING_BREAKS = False
-TRADING_BREAKS = [
-    # Binance Funding - no open positions, no fees and no funding
-    # only needed for perpetual contracts
-    {
-        'from': '00:00',
-        'to': '00:05'
-    },
-    {
-        'from': '07:55',
-        'to': '08:05'
-    },
-    {
-        'from': '15:55',
-        'to': '16:05'
-    }
-    # {
-    #     'from': '16:00',
-    #     'to': '18:00'
-    # },
-    # {
-    #     'from': '08:00',
-    #     'to': '09:00'
-    # }
-]
+SYMBOL = 'MESM2'
+TICK_SIZE = 0.25
+TICK_VALUE = 1.25
+USE_TRADING_BREAKS = True
+# @see https://www.tradovate.com/resources/markets/?p=MES
+# @see https://www.cmegroup.com/markets/equities/sp/micro-e-mini-sandp-500.contractSpecs.html
+# @see https://tradovate.zendesk.com/hc/en-us/articles/115002511608-What-hours-are-day-night-and-initial-margins-available-
+# todo: implement public holidays (maybe by auto importing because of different weekdays each year)
+TRADING_BREAKS = [{
+    'symbols': [
+        'MESM2'
+    ],
+    'breaks': [
+        {
+            'from': '00:00',
+            'to': '07:00'
+        },
+        {
+            'from': '15:00',
+            'to': '23:59'
+        }
+    ]
+}]
 
 # PLOT = True
 PLOT = False

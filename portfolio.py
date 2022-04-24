@@ -1,5 +1,6 @@
 import datetime
 
+import definitions
 from definitions import *
 import math
 
@@ -47,10 +48,12 @@ class Portfolio:
     def is_currently_a_trading_break(self, current_time):
         if USE_TRADING_BREAKS:
             for trading_break in TRADING_BREAKS:
-                break_from_time = datetime.datetime.strptime(trading_break['from'], '%H:%M').time()
-                break_to_time = datetime.datetime.strptime(trading_break['to'], '%H:%M').time()
-                if break_from_time < current_time < break_to_time:
-                    return True
+                if definitions.SYMBOL in trading_break['symbols']:
+                    for breaks in trading_break['breaks']:
+                        break_from_time = datetime.datetime.strptime(breaks['from'], '%H:%M').time()
+                        break_to_time = datetime.datetime.strptime(breaks['to'], '%H:%M').time()
+                        if break_from_time < current_time < break_to_time:
+                            return True
         return False
 
     def create_order(

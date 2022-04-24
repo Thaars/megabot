@@ -23,6 +23,7 @@ from pandas_finance import Equity
 # API
 import definitions
 from api_key import *
+from db import DB
 
 from tradovate.tradovate_api_client import Client as TradovateClient
 from tradovate.tradovate_api_client import AuthenticatedClient
@@ -110,84 +111,32 @@ def get_stock_data(symbol, timeframe="5m"):
     return filename
 
 
-def get_tradovate_data():
-
-    tradovate_client = TradovateClient(base_url=definitions.TRADOVATE_URL)
-
-    access_token_response = access_token_request.sync(
-        client=tradovate_client,
-        json_body=AccessTokenRequest(
-            name=TRADOVATE_NAME,
-            password=TRADOVATE_API_PW,
-            app_id=TRADOVATE_APP_ID,
-            app_version=definitions.APP_VERSION,
-            device_id=TRADOVATE_API_DEVICE_ID,
-            cid=TRADOVATE_API_CID,
-            sec=TRADOVATE_API_SECRET
-        )
+def get_tradovate_data(symbol, timeframe="1m"):
+    filename = 'data_with_indicators/%s-%s-%s-%s-data.csv' % (
+        symbol, timeframe, definitions.HISTORICAL_DATA_FROM, definitions.HISTORICAL_DATA_TO
     )
-    access_token = access_token_response.access_token
-    authenticated_client = AuthenticatedClient(tradovate_client, token=access_token)
+    if os.path.isfile(filename):
+        data_df = pd.read_csv(filename)
+    else:
+        db = DB().db
+        db_cursor = db.cursor(dictionary=True)
+        db_cursor.execute(
+            "select * from minute_bars where `symbol` = %s and `timestamp` between %s and %s order by `timestamp` asc;",
+            [
+                definitions.SYMBOL,
+                definitions.START_DATE,
+                definitions.END_DATE
+            ]
+        )
+        result = db_cursor.fetchall()
+        filename = 'data_with_indicators/%s-%s-%s-%s-data.csv' % (
+            symbol, timeframe, definitions.HISTORICAL_DATA_FROM, definitions.HISTORICAL_DATA_TO
+        )
+        df = pd.DataFrame(result)
+        df.rename(columns={'timestamp': 'datetime'}, inplace=True)
+        df.drop(df.columns[[0]], axis=1, inplace=True)
+        df.to_csv(f'{filename}', index=True, sep=";")
+        # print(result)
+    return filename
 
-    asyncio.run(open_ws(access_token))
-
-
-async def heartbeat(websocket):
-    await websocket.send('[]')
-
-
-async def chart(websocket, request_number):
-    body = {
-        "symbol": definitions.TRADOVATE_SYMBOL,
-        "chartDescription": {
-            "underlyingType": "MinuteBar",
-            "elementSize": 30,
-            "elementSizeUnit": "UnderlyingUnits",
-            "withHistogram": False,
-        },
-        "timeRange": {
-            "asMuchAsElements": 20
-        }
-    }
-    await websocket.send(f"md/getChart\n{request_number}\n\n{json.dumps(body)}")
-
-
-async def subscribe_quote(websocket, request_number):
-    body = {
-        "symbol": definitions.TRADOVATE_SYMBOL
-    }
-    await websocket.send(f"md/subscribeQuote\n{request_number}\n\n{json.dumps(body)}")
-
-
-async def receive(websocket):
-    while True:
-        response = await websocket.recv()
-        print(f"receive: {response}")
-
-
-async def open_ws(access_token):
-    request_number = 1
-    async with websockets.connect(definitions.TRADOVATE_WEBSOCKET_URL) as websocket:
-
-        asyncio.create_task(receive(websocket), name='receive')
-
-        await websocket.send(f"authorize\n{request_number}\n\n{access_token}")
-        request_number += 1
-
-        # asyncio.create_task(chart(websocket, request_number), name='chart')
-        # request_number += 1
-        # asyncio.create_task(subscribe_quote(websocket, request_number), name='subscribe_quote')
-        # request_number += 1
-
-        while True:
-
-            # asyncio.create_task(chart(websocket, request_number), name='chart')
-            # request_number += 1
-
-            await asyncio.gather(
-                asyncio.create_task(heartbeat(websocket), name='heartbeat'),
-                asyncio.sleep(2.5)
-            )
-            # await asyncio.sleep(2.5)
-            # asyncio.create_task(heartbeat(websocket), name='heartbeat')
 

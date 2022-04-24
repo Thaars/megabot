@@ -62,7 +62,7 @@ class DB:
                           "INDEX market_performance_index(`market_performance`)"
                           ");")
 
-        db_cursor.execute("create table if not exists ticks("
+        db_cursor.execute("create table if not exists minute_bars("
                           "`id` int(10) auto_increment primary key,"
                           "`symbol` varchar(250),"
                           "`timestamp` timestamp,"
