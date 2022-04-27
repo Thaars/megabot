@@ -134,3 +134,4 @@ api_key.py
 data_with_indicators/*
 
 .idea
+/tmp/

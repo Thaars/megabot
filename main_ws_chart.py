@@ -6,18 +6,8 @@
 import hashlib
 import json
 
-import pandas as pd
-import math
-import os.path
-import time
-
 import asyncio
 import websockets
-from binance.client import Client
-from datetime import timedelta, datetime, date
-from dateutil import parser
-import yfinance as yf
-from pandas_finance import Equity
 
 # API
 import definitions
@@ -30,6 +20,11 @@ from tradovate.tradovate_api_client.api.accounting import account_list
 from tradovate.tradovate_api_client.api.authentication import access_token_request
 from tradovate.tradovate_api_client.api.users import user_list, sync_request
 from tradovate.tradovate_api_client.models import AccessTokenRequest
+
+
+REQUESTS = []
+HISTORICAL_ID = None
+REALTIME_ID = None
 
 
 async def get_tradovate_data():
@@ -67,7 +62,9 @@ async def heartbeat(websocket):
         await websocket.send('[]')
 
 
-async def get_chart(websocket, request_id):
+async def get_chart(websocket):
+    global REQUESTS
+    REQUESTS.append('get_chart')
     body = {
         "symbol": definitions.SYMBOL,
         "chartDescription": {
@@ -91,29 +88,17 @@ async def get_chart(websocket, request_id):
     # ]
     # await websocket.send(message)
     await asyncio.sleep(1)
-    print(f"md/getChart\n{request_id}\n\n{json.dumps(body)}")
-    await websocket.send(f"md/getChart\n{request_id}\n\n{json.dumps(body)}")
+    print(f"md/getChart\n{len(REQUESTS)['chart']}\n\n{json.dumps(body)}")
+    await websocket.send(f"md/getChart\n{len(REQUESTS)['chart']}\n\n{json.dumps(body)}")
     while True:
         await asyncio.sleep(30)
 
 
-async def subscribe_quote(websocket, request_id):
-    await asyncio.sleep(2)
-    body = {
-        "symbol": definitions.SYMBOL
-    }
-    message = [
-        "md/subscribeQuote",
-        str(request_id),
-        "\n",
-        json.dumps(body)
-    ]
-    await websocket.send(message)
-    # print(f"md/subscribeQuote\n{request_id}\n\n{json.dumps(body)}")
-    # await websocket.send(f"md/subscribeQuote\n{request_id}\n\n{json.dumps(body)}")
-
-
 async def receive(websocket):
+    global HISTORICAL_ID
+    global REALTIME_ID
+    global REQUESTS
+
     while True:
         response = await websocket.recv()
         print(f"receive: {response}")
@@ -131,8 +116,9 @@ async def receive(websocket):
                 if response_status is not None:
                     if response_status == 200:
                         response_id = jmsg['i']
-                        historical_id = jmsg.get('historicalId')
-                        realtime_id = jmsg.get('realtimeId')
+                        request_type = REQUESTS[int(response_id) - 1]
+                        HISTORICAL_ID = jmsg.get('historicalId')
+                        REALTIME_ID = jmsg.get('realtimeId')
                     else:
                         print("got response ERROR --\n{0}\n".format(jmsg))
 
@@ -163,34 +149,35 @@ async def receive(websocket):
                                     result_hash = get_hash_from_list(result_list)
                                     result_list += [result_hash]
 
-                                    db = DB().db
-                                    db_cursor = db.cursor(dictionary=True)
-                                    db_cursor.execute(
-                                        "select * from minute_bars where `hash` = %s",
-                                        [result_hash]
-                                    )
-                                    db_cursor.fetchone()
-                                    if db_cursor.rowcount == -1:
-                                        db_cursor = db.cursor()
-                                        db_cursor.execute(
-                                            "insert into minute_bars ("
-                                                "`symbol`,"
-                                                "`timestamp`,"
-                                                "`open`,"
-                                                "`high`,"
-                                                "`low`,"
-                                                "`close`,"
-                                                "`up_volume`,"
-                                                "`down_volume`,"
-                                                "`up_ticks`,"
-                                                "`down_ticks`,"
-                                                "`bid_volume`,"
-                                                "`offer_volume`,"
-                                                "`hash`"
-                                            ") values ("
-                                                "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s"
-                                            ")", tuple(result_list))
-                                        db.commit()
+                                    # db = DB().db
+                                    # db_cursor = db.cursor(dictionary=True)
+                                    # db_cursor.execute(
+                                    #     "select * from minute_bars where `hash` = %s",
+                                    #     [result_hash]
+                                    # )
+                                    # db_cursor.fetchone()
+                                    # if db_cursor.rowcount == -1:
+                                    #     db_cursor = db.cursor()
+                                    #     db_cursor.execute(
+                                    #         "insert into minute_bars ("
+                                    #             "`symbol`,"
+                                    #             "`timestamp`,"
+                                    #             "`open`,"
+                                    #             "`high`,"
+                                    #             "`low`,"
+                                    #             "`close`,"
+                                    #             "`up_volume`,"
+                                    #             "`down_volume`,"
+                                    #             "`up_ticks`,"
+                                    #             "`down_ticks`,"
+                                    #             "`bid_volume`,"
+                                    #             "`offer_volume`,"
+                                    #             "`hash`"
+                                    #         ") values ("
+                                    #             "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s"
+                                    #         ")", tuple(result_list))
+                                    #     db.commit()
+
                 # else:
                 #     response_status = jmsg['s']
                 #     if response_status == 200:
@@ -203,26 +190,18 @@ async def receive(websocket):
 
 
 async def open_ws(access_token):
-    request_id = 1
+    global REQUESTS
     async with websockets.connect(definitions.TRADOVATE_WEBSOCKET_URL) as websocket:
 
         receive_task = asyncio.create_task(receive(websocket), name='receive')
 
-        await websocket.send(f"authorize\n{request_id}\n\n{access_token}")
-        request_id += 1
-
-        # asyncio.create_task(chart(websocket, request_id), name='chart')
-        # request_id += 1
-        # asyncio.create_task(subscribe_quote(websocket, request_id), name='subscribe_quote')
-        # request_id += 1
+        REQUESTS.append('authorize')
+        await websocket.send(f"authorize\n{len(REQUESTS)}\n\n{access_token}")
 
         asyncio.create_task(heartbeat(websocket), name='heartbeat')
-
-        asyncio.create_task(get_chart(websocket, request_id), name='chart')
-        request_id += 1
-
-        # asyncio.create_task(subscribe_quote(websocket, request_id), name='subscribe_quote')
-        # request_id += 1
+        asyncio.create_task(get_ticks(websocket), name='ticks')
+        # asyncio.create_task(get_chart(websocket), name='chart')
+        # asyncio.create_task(subscribe_quote(websocket), name='subscribe_quote')
 
         await asyncio.Future()  # run forever
 

@@ -43,7 +43,7 @@ PRICE_BREAKOUT_CONFIG = {
     # number of past candles to take into account for decisions
     'number_of_past_candles': 20,
     # the (lower (short) or upper (long)) wick may not be larger than this value in percent of the candle body
-    'max_wick_in_percent': 25,
+    'max_wick_in_percent': 20,
     # the current candle body must be at least n times larger than the largest body of the n previous candles
     'min_prev_body_diff_factor': 2,
     # the current candle body may not be greater that n times of the largest body of the last n previous candles
@@ -124,6 +124,7 @@ SYMBOL = 'MESM2'
 TICK_SIZE = 0.25
 TICK_VALUE = 1.25
 USE_TRADING_BREAKS = True
+# @see https://community.tradovate.com/t/how-to-detect-whether-the-a-future-market-is-open-or-not/3575/4?u=ingo
 # @see https://www.tradovate.com/resources/markets/?p=MES
 # @see https://www.cmegroup.com/markets/equities/sp/micro-e-mini-sandp-500.contractSpecs.html
 # @see https://tradovate.zendesk.com/hc/en-us/articles/115002511608-What-hours-are-day-night-and-initial-margins-available-

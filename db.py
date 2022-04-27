@@ -83,4 +83,23 @@ class DB:
                           "INDEX symbol_timestamp_index(`symbol`,`timestamp`)"
                           ");")
 
+        db_cursor.execute("create table if not exists ticks("
+                          "`id` int(10) auto_increment primary key,"
+                          "`tick_id` int(10),"
+                          "`symbol` varchar(250),"
+                          "`timestamp` timestamp(3),"
+                          "`tick_price` decimal(12,4),"
+                          "`tick_volume` decimal(12,4),"
+                          "`bid_price` decimal(12,4),"
+                          "`ask_price` decimal(12,4),"
+                          "`bid_size` decimal(12,4),"
+                          "`ask_size` decimal(12,4),"
+                          "`hash` varchar(250),"
+                          "INDEX tick_id_index(`tick_id`),"
+                          "INDEX hash_index(`hash`),"
+                          "INDEX symbol_index(`symbol`),"
+                          "INDEX timestamp_index(`timestamp`),"
+                          "INDEX symbol_timestamp_index(`symbol`,`timestamp`)"
+                          ");")
+
         return db
