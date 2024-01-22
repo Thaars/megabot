@@ -15,10 +15,6 @@ from definitions import *
 from datetime import date
 
 
-# sdate = date(2018, 4, 1)  # start date
-# edate = date(2020, 4, 1)
-
-
 def frange(start, stop, step=1.0):
     while start <= stop:
         yield start
@@ -27,62 +23,75 @@ def frange(start, stop, step=1.0):
 
 def worker():
     print(f'Worker spawned')
-    test(definitions.PLOT)
+    run_back_test(definitions.PLOT)
     print(f"Worker finished the work")
 
 
 def main():
     db = DB().db
-    filename = get_tradovate_data(definitions.SYMBOL, definitions.TIMEFRAME)
-    # filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
+    # filename = get_tradovate_data(definitions.SYMBOL, definitions.TIMEFRAME)
+    filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
     # # filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
-    pf, config = test(filename, definitions.PLOT)
+    pf, config = run_back_test(filename, definitions.PLOT)
     save_strategy(db, pf, config)
     print(f"*********************************************")
     print(f"Config: {json.dumps(config)}")
     print(f"Symbol: {SYMBOL}")
     print(f"Timeframe: {TIMEFRAME}")
     print(f"Trades: ")
-    print(f"\t winning - {pf.winning}")
-    print(f"\t losing - {pf.losing}")
-    print(f"\t winners - {pf.winners}")
-    print(f"\t losers - {pf.losers}")
-    print(f"\t largest loser series - {pf.largest_loser_series}")
-    print(f"Performance: ")
-    print(f'\t market: {pf.get_market_performance()}')
-    print(f'\t overall: {pf.get_performance()}')
+    for cycle in pf.cycles_for_stats:
+        print(json.dumps(cycle['stats']))
+    print(f"On hold: ")
+    sum_bound_cash = 0
+    sum_on_hold = 0
+    # calc trades which are on hold because the buying price was never reached again in this timeframe
+    for cycle in pf.cycles_for_stats:
+        if len(cycle['orders']) > 0:
+            first_bought_at = 0
+            last_bought_at = 0
+            sum_orders = 0
+            sum_units = 0
+            for order in cycle['orders']:
+                if first_bought_at == 0:
+                    first_bought_at = str(order['index'].day) + '.' + str(order['index'].month) + '.' \
+                                      + str(order['index'].year) + '. ' + str(order['index'].hour) + 'h'
+                # last buy will be overwritten each time, so it's the last at the end
+                last_bought_at = str(order['index'].day) + '.' + str(order['index'].month) + '.' \
+                                      + str(order['index'].year) + '. ' + str(order['index'].hour) + 'h'
+                sum_units += order['units']
+                sum_orders += order['units'] * order['buying_price']
+            crypto_on_hold = {
+                'units': sum_units,
+                'average_buying_price': round(sum_orders / sum_units, 2),
+                'average_buying_costs': round(sum_orders / len(cycle['orders']), 2),
+                'bound_cash': round(sum_orders, 2),
+                'first_bought_at': first_bought_at,
+                'last_bought_at': last_bought_at
+            }
+            sum_bound_cash += sum_orders
+            sum_on_hold += 1
+            print(f'\t crypto on hold: {json.dumps(crypto_on_hold)}')
+    print(f"General: ")
+    print(f'\t holds: {sum_on_hold}')
+    print(f'\t cycles: {len(pf.cycles_for_stats)}')
+    print(f'\t orders: {pf.order_count}')
     print(f"Total: ")
     print(f'\t cash: {round(pf.cash, 2)}')
-    print(f'\t ticks: {round(pf.ticks, 5)}')
-    print(f'\t winning ticks: {round(pf.winning_ticks, 5)}')
-    print(f'\t losing ticks: {round(pf.losing_ticks, 5)}')
-    print(f'\t tick cash: {round(pf.tick_cash, 5)}')
-    print(f'\t lowest tick cash: {round(pf.lowest_tick_cash, 5)}')
-    print(f'\t max stop loss amount: {round(pf.max_stop_loss_amount, 5)}')
-    print(f'\t max stop loss ticks: {round(pf.max_stop_loss_amount / TICK_SIZE, 5)}')
-    print(f'\t max stop loss margin: {round(pf.max_stop_loss_amount / TICK_SIZE * TICK_VALUE, 5)}')
+    print(f'\t bound cash: {round(sum_bound_cash, 2)} (average buying price)')
+    print(f'\t total cash: {round(pf.cash + sum_bound_cash, 2)}')
+    print(f"Performance: ")
+    print(f'\t market: {pf.get_market_performance()}')
+    print(f'\t overall: {pf.get_performance(round(pf.cash + sum_bound_cash, 2))}')
     return
-    # # workers = []
-    # # if __name__ == '__main__':
-    # #     # for limit in frange(103, 105, 0.5):
-    # #     w = multiprocessing.Process(
-    # #         target=worker,
-    # #         args=()
-    # #     )
-    # #     workers.append(w)
-    # #
-    # #     for w in workers:
-    # #         w.start()
-    # #
-    # #     for w in workers:
-    # #         w.join()
-    # #     print(1)
 
 
-def test(filename, chart=False):
+def run_back_test(filename, chart=False):
     df = dataframe.trading_data_from_csv(filename)
 
     df = indicator.last_5_10_15_20_candles(df, filename)
+    df = indicator.aroon(df, filename, definitions.AROON_PERIOD)
+    df = indicator.ma_cross(df, filename, definitions.MA_FAST_PERIOD, definitions.MA_SLOW_PERIOD)
+    df = indicator.fractals(df, filename, definitions.FRACTALS_PERIOD)
 
     df = df.loc[f'{definitions.START_DATE}':f'{definitions.END_DATE}']
 
@@ -160,30 +169,30 @@ def save_strategy(db, pf, config):
                             USED_STRATEGY,
                             json.dumps(config),
                             TIMEFRAME,
-                            config['trade_type'],
+                            '',
                             days,
                             pf.get_performance(),
                             pf.get_market_performance(),
-                            json.dumps(pf.winning),
-                            json.dumps(pf.losing),
-                            json.dumps(pf.winners),
-                            json.dumps(pf.losers),
-                            json.dumps(pf.largest_loser_series),
+                            '',
+                            '',
+                            '',
+                            '',
+                            '',
                             f'{START_DATE}',
                             f'{END_DATE}',
-                            float(round(pf.ticks, 5)),
-                            float(round(pf.winning_ticks, 5)),
-                            float(round(pf.losing_ticks, 5)),
-                            float(round(pf.tick_cash, 5)),
-                            float(round(pf.lowest_tick_cash, 5)),
-                            float(round(pf.max_stop_loss_amount, 5)),
-                            float(round(pf.max_stop_loss_amount / TICK_SIZE, 5)),
-                            float(round(pf.max_stop_loss_amount / TICK_SIZE * TICK_VALUE, 5)),
-                            float(TICK_SIZE),
-                            float(TICK_VALUE),
-                            json.dumps(trading_breaks),
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            '',
                             float(COMMISSION_FACTOR),
-                            float(COMMISSION_VALUE),
+                            0,
                             float(STARTING_AMOUNT),
                             float(round(pf.cash, 2))
                           )])

@@ -65,6 +65,32 @@ def price_quick_doji(df, pf):
     return po.analyze()
 
 
+def price_buy_red(df, pf):
+    from strategies.price_buy_red import PRICE_BUY_RED
+    po = PRICE_BUY_RED(df=df, pf=pf)
+    po.prepare()
+    return po.analyze()
+
+
+def aroon(df, pf):
+    from strategies.aroon import AROON
+    po = AROON(df=df, pf=pf)
+    po.prepare()
+    return po.analyze()
+
+
+def ma_cross_aroon(df, pf):
+    from strategies.ma_cross_aroon import MA_CROSS_AROON
+    po = MA_CROSS_AROON(df=df, pf=pf)
+    po.prepare()
+    return po.analyze()
+
+
+def fractals(df, pf):
+    from strategies.fractals import FRACTALS
+    po = FRACTALS(df=df, pf=pf)
+    po.prepare()
+    return po.analyze()
 
 # todo:
 #   neue Strategie:

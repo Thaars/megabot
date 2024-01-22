@@ -20,30 +20,67 @@ MYSQL_DB = "megabot"
 
 STOP_LOSS_LEVEL = 98.5
 LIMIT_LEVEL = 105
-STARTING_AMOUNT = 100
+STARTING_AMOUNT = 2000
 DAYS = 365
 INDICATORS = list()
 # 0,1% at binance
-COMMISSION_FACTOR = 0.000
+COMMISSION_FACTOR = 0.001
 # $0.25 at Tradovate
 COMMISSION_VALUE = 0.25
 
-HISTORICAL_DATA_FROM = '15 Mar 2022'
-HISTORICAL_DATA_TO = '15 Apr 2022'
-START_DATE = datetime.datetime(year=2022, month=1, day=1, hour=0, minute=0)
-END_DATE = datetime.datetime(year=2022, month=4, day=20, hour=0, minute=0)
-# HISTORICAL_DATA_FROM = '3 Jan 2021'
+AROON_PERIOD = 25
+MA_FAST_PERIOD = 7
+MA_SLOW_PERIOD = 26
+FRACTALS_PERIOD = 5
+
+# 02/2022 - 12/2022
+# HISTORICAL_DATA_FROM = '01 Feb 2022'
+# HISTORICAL_DATA_TO = '31 Dec 2022'
+# START_DATE = datetime.datetime(year=2022, month=2, day=1, hour=0, minute=0)
+# END_DATE = datetime.datetime(year=2022, month=12, day=31, hour=23, minute=59)
+# 11/2021 - 12/2022
+# HISTORICAL_DATA_FROM = '01 Nov 2021'
+# HISTORICAL_DATA_TO = '31 Dec 2022'
+# START_DATE = datetime.datetime(year=2021, month=11, day=1, hour=0, minute=0)
+# END_DATE = datetime.datetime(year=2022, month=12, day=31, hour=23, minute=59)
+# 2019 - 2023
+HISTORICAL_DATA_FROM = '01 Jan 2019'
+HISTORICAL_DATA_TO = '31 Dec 2023'
+START_DATE = datetime.datetime(year=2019, month=1, day=1, hour=0, minute=0)
+END_DATE = datetime.datetime(year=2023, month=12, day=31, hour=23, minute=59)
+# 2023
+# HISTORICAL_DATA_FROM = '01 Jan 2023'
+# HISTORICAL_DATA_TO = '31 Dec 2023'
+# START_DATE = datetime.datetime(year=2023, month=1, day=1, hour=0, minute=0)
+# END_DATE = datetime.datetime(year=2023, month=12, day=31, hour=23, minute=59)
+# 2022
+# HISTORICAL_DATA_FROM = '1 Jan 2022'
+# HISTORICAL_DATA_TO = '31 Dec 2022'
+# START_DATE = datetime.datetime(year=2022, month=1, day=1, hour=0, minute=0)
+# END_DATE = datetime.datetime(year=2022, month=1, day=31, hour=23, minute=59)
+# 2021
+# HISTORICAL_DATA_FROM = '1 Jan 2021'
 # HISTORICAL_DATA_TO = '31 Dec 2021'
-# START_DATE = datetime.datetime(year=2021, month=1, day=3, hour=0, minute=0)
+# START_DATE = datetime.datetime(year=2021, month=1, day=1, hour=0, minute=0)
 # END_DATE = datetime.datetime(year=2021, month=1, day=31, hour=23, minute=59)
+# 2020
+# HISTORICAL_DATA_FROM = '01 Jan 2020'
+# HISTORICAL_DATA_TO = '31 Dec 2020'
+# START_DATE = datetime.datetime(year=2020, month=1, day=1, hour=0, minute=0)
+# END_DATE = datetime.datetime(year=2020, month=12, day=31, hour=23, minute=59)
+# 2019
+# HISTORICAL_DATA_FROM = '01 Jan 2019'
+# HISTORICAL_DATA_TO = '31 Dec 2019'
+# START_DATE = datetime.datetime(year=2019, month=1, day=1, hour=0, minute=0)
+# END_DATE = datetime.datetime(year=2019, month=12, day=31, hour=23, minute=59)
 
 PRICE_BREAKOUT_CONFIG = {
     # long|short|both
     'trade_type': 'long',
     # number of past candles to take into account for decisions
-    'number_of_past_candles': 20,
+    'number_of_past_candles': 15,
     # the (lower (short) or upper (long)) wick may not be larger than this value in percent of the candle body
-    'max_wick_in_percent': 20,
+    'max_wick_in_percent': 15,
     # the current candle body must be at least n times larger than the largest body of the n previous candles
     'min_prev_body_diff_factor': 2,
     # the current candle body may not be greater that n times of the largest body of the last n previous candles
@@ -55,7 +92,7 @@ PRICE_BREAKOUT_CONFIG = {
     # this will disable the next target and stop loss factor settings
     'use_largest_body_as_target_and_stop_loss': False,
     # the target is n times the current candle body
-    'target_diff_from_candle_factor': 2,
+    'target_diff_from_candle_factor': 2.2,
     # the stop loss is n times the current candle body
     'stop_loss_diff_from_candle_factor': 1,
     # the stop loss and target will be reached, if the price exceeds these values
@@ -73,19 +110,19 @@ PRICE_MINI_WICKS_CONFIG = {
     # long|short|both
     'trade_type': 'long',
     # number of past candles to take into account for decisions
-    'number_of_past_candles': 5,
+    'number_of_past_candles': 10,
     # the (lower (short) or upper (long)) wick may not be larger than this value in percent of the candle body
-    'max_positive_wick_in_percent': 2,
+    'max_positive_wick_in_percent': 5,
     # the (upper (short) or lower (long)) wick may not be larger than this value in percent of the candle body
-    'max_negative_wick_in_percent': 2,
+    'max_negative_wick_in_percent': 5,
     # the current candle body must be at least n times larger than the largest body of the n previous candles
-    'min_prev_body_diff_factor': 0.1,
+    'min_prev_body_diff_factor': 0.5,
     # the current candle body may not be greater that n times of the largest body of the last n previous candles
-    'max_prev_body_diff_factor': 3,
+    'max_prev_body_diff_factor': 2,
     # the target is n times the current candle body
-    'target_diff_from_candle_factor': 2,
+    'target_diff_from_candle_factor': 4,
     # the stop loss is n times the current candle body
-    'stop_loss_diff_from_candle_factor': 0.1,
+    'stop_loss_diff_from_candle_factor': 1,
     # the stop loss and target will be reached, if the price exceeds these values
     # the price is lower than low|close for long trades
     'stop_loss_long_limit_key': 'low',
@@ -99,7 +136,7 @@ PRICE_MINI_WICKS_CONFIG = {
 
 PRICE_QUICK_DOJI_CONFIG = {
     # long|short|both
-    'trade_type': 'both',
+    'trade_type': 'long',
     # number of past candles to take into account for decisions
     'max_body_in_percent': 15,
     # the wicks may not be smaller than this value in percent of the candle body
@@ -110,20 +147,69 @@ PRICE_QUICK_DOJI_CONFIG = {
     'use_wicks_as_target_and_stop_loss': False,
 }
 
+PRICE_BUY_RED_CONFIG = {
+    # the maximum percentage part of the start cash in the portfolio to invest in each cycle
+    'cycle_max_invest_of_cash_in_percent': 10,
+    # the number of dollars which will be invested for each order
+    'order_invest': 20,
+    # the multiplier to append more cash to a buy when the next red candle is much longer
+    # the lower the price, the more the invest
+    'order_invest_factor': 20,
+    # a factor to increase the sell price related to the buying price in percent
+    'sell_price_factor_in_percent': 5,
+    # the number of candles from the last buy until the cycle goes on hold
+    'candle_limit_until_hold': 50,
+    # the number of candles from the last buy and for cycles on hold until the sell price
+    # will not be longer cycle start price, it will be changed to the cycle average buying price
+    'candle_limit_until_sell_for_average_price': 100
+}
+
+AROON = {
+    # the maximum percentage share of the start cash in the portfolio to invest in each trade
+    'order_invest': 10,
+    # the arron indicator which is responsible for sell must have at least a value of
+    'sell_aroon_min_value': 95
+}
+
+MA_CROSS_AROON = {
+    # the maximum percentage share of the start cash in the portfolio to invest in each trade
+    'order_invest': 50,
+    # the arron indicator which is responsible for buy must have at least a value of
+    'buy_aroon_min_value': 0,
+    # the arron indicator which is responsible for sell must have at least a value of
+    'sell_aroon_min_value': 0,
+    # sell early, if the current candle has made more than this percent profit
+    'candle_profit_sell_limit': 5,
+    # sell early, if the price has made more than this percent profit
+    'price_profit_sell_limit': 50
+}
+
+FRACTALS = {
+    # the maximum percentage share of the start cash in the portfolio to invest in each trade
+    'order_invest': 50,
+    # determines, if the bullish fractal should be used as bearish signal and vice versa
+    'invert': True
+}
+
+
 # todo: commission
 #   cash commission
 #   tick commission - stimmen tick size und tick value und die logik dahinter?
 # todo: retest mit anderen Zeiträumen
 # todo: testen von verschiedenen Parametern
 
-USED_STRATEGY = 'price_breakout'
+# USED_STRATEGY = 'price_breakout'
 # USED_STRATEGY = 'price_mini_wicks'
 # USED_STRATEGY = 'price_quick_doji'
-TIMEFRAME = "1m"
-SYMBOL = 'MESM2'
+# USED_STRATEGY = 'price_buy_red'
+# USED_STRATEGY = 'aroon'
+# USED_STRATEGY = 'ma_cross_aroon'
+USED_STRATEGY = 'fractals'
+TIMEFRAME = "30m"
+SYMBOL = 'BTCUSDT'
 TICK_SIZE = 0.25
 TICK_VALUE = 1.25
-USE_TRADING_BREAKS = True
+USE_TRADING_BREAKS = False
 # @see https://community.tradovate.com/t/how-to-detect-whether-the-a-future-market-is-open-or-not/3575/4?u=ingo
 # @see https://www.tradovate.com/resources/markets/?p=MES
 # @see https://www.cmegroup.com/markets/equities/sp/micro-e-mini-sandp-500.contractSpecs.html
