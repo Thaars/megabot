@@ -1,5 +1,5 @@
 import mysql.connector
-import definitions
+import db_credentials
 
 
 # https://www.edureka.co/blog/python-database-connection/#MySQL
@@ -9,18 +9,18 @@ class DB:
 
     def connect_db(self):
         db = mysql.connector.connect(
-            host=definitions.MYSQL_HOST,
-            user=definitions.MYSQL_USER,
-            passwd=definitions.MYSQL_PASS
+            host=db_credentials.MYSQL_HOST,
+            user=db_credentials.MYSQL_USER,
+            passwd=db_credentials.MYSQL_PASS
         )
         db_cursor = db.cursor()
-        db_cursor.execute(f"create database if not exists `{definitions.MYSQL_DB}`")
+        db_cursor.execute(f"create database if not exists `{db_credentials.MYSQL_DB}`")
 
         db = mysql.connector.connect(
-            host=definitions.MYSQL_HOST,
-            user=definitions.MYSQL_USER,
-            passwd=definitions.MYSQL_PASS,
-            database=definitions.MYSQL_DB
+            host=db_credentials.MYSQL_HOST,
+            user=db_credentials.MYSQL_USER,
+            passwd=db_credentials.MYSQL_PASS,
+            database=db_credentials.MYSQL_DB
         )
         db_cursor = db.cursor()
         db_cursor.execute("create table if not exists results("
