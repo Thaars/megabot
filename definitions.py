@@ -13,11 +13,6 @@ TRADOVATE_URL = "https://live.tradovateapi.com/v1"
 TRADOVATE_WEBSOCKET_URL = "wss://md.tradovateapi.com/v1/websocket"
 # TRADOVATE_MARKET_DATA_URL = "https://demo.tradovateapi.com/v1"
 
-MYSQL_HOST = "localhost"
-MYSQL_USER = "root"
-MYSQL_PASS = "godiv"
-MYSQL_DB = "megabot"
-
 STOP_LOSS_LEVEL = 98.5
 LIMIT_LEVEL = 105
 STARTING_AMOUNT = 2000

@@ -1,7 +1,5 @@
 import json
-import multiprocessing
 import os
-import warnings
 import zlib
 
 import definitions
@@ -9,37 +7,47 @@ import strategy
 import dataframe
 import plot
 import indicator
+import test_configs
 from api import get_all_binance, get_stock_data, get_tradovate_data
 from db import DB
 from portfolio import Portfolio
 from definitions import *
-from datetime import date
 
-import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM
 import numpy as np
 import mplfinance as mpf
-import matplotlib.pyplot as plt
-from datetime import datetime
-import pytz
+from datetime import date, datetime
+from test_configs import *
 
 
 def main():
-    config = {
-        'symbol': 'BTCUSDT',
-        'timeframe': '30m',
-        'layers': 5,
-        'neurones': 500,
-        # Liste von Spaltennamen, die als Features dienen sollen
-        'columns': ['open', 'high', 'low', 'close'],
-        # Anzahl der Datenpunkte für die Sequenz (wird benutzt um den nachfolgenden Datenpunkt vorherzusagen)
-        'sequence_length': 30,
-        # Berechnen des Trennindex - 80% der Daten für das Training
-        'split_index': 0.8,
-        'epochs': 1,
-    }
+    use_test_configs = False
+    if use_test_configs:
+        for config in test_configs.test_configs:
+            execute(config)
+    else:
+        config = {
+            'symbol': 'BTCUSDT',
+            'timeframe': '30m',
+            'layers': 10,
+            'neurones': 100,
+            # Liste von Spaltennamen, die als Features dienen sollen
+            'columns': ['open', 'high', 'low', 'close',
+                        'aroon_25_up', 'aroon_25_down',
+                        'ma_7', 'ma_26', 'ma_golden_cross_7_26', 'ma_death_cross_7_26',
+                        'fractal_5_bullish', 'fractal_5_bearish'],
+            # Anzahl der Datenpunkte für die Sequenz (wird benutzt um den nachfolgenden Datenpunkt vorherzusagen)
+            'sequence_length': 30,
+            # Berechnen des Trennindex - 80% der Daten für das Training
+            'split_index': 0.8,
+            'epochs': 1,
+        }
+        execute(config)
+
+
+def execute(config):
     ai_model_path = 'ai_models/'
     chart = False
     # Anzahl der Kerzen, die vom Ende des Dataframes für den Plot verwendet werden sollen
@@ -55,6 +63,13 @@ def main():
     df = indicator.fractals(df, filename, definitions.FRACTALS_PERIOD)
 
     df = df.loc[f'{definitions.START_DATE}':f'{definitions.END_DATE}']
+
+    # Schritt 1: Frühesten gültigen Zeitpunkt für jede Spalte bestimmen
+    first_valid_timestamps = df.apply(lambda col: col.first_valid_index())
+    # Schritt 2: Spätesten dieser frühesten Zeitpunkte ermitteln
+    latest_first_valid_timestamp = first_valid_timestamps.max()
+    # Schritt 3: DataFrame filtern, um nur Daten ab diesem Zeitpunkt einzuschließen
+    df = df.loc[latest_first_valid_timestamp:]
 
     # Liste von Spaltennamen, die als Features dienen sollen
     feature_columns = config['columns']
@@ -126,7 +141,7 @@ def main():
     # Erstellen Sie ein Dummy-Array mit Nullen oder einem anderen Platzhalterwert
     # für die anderen Spalten, die beim Skalieren berücksichtigt wurden
     dummy_features = np.zeros(
-        (predicted_prices.shape[0], 3))  # Erstellt ein Array von Nullen für die 3 anderen Features
+        (predicted_prices.shape[0], num_features-1))  # Erstellt ein Array von Nullen für die restlichen Features
     # Fügen Sie die vorhergesagten Preise zu diesem Array hinzu, um die korrekte Form zu erhalten
     predicted_full = np.concatenate([dummy_features, predicted_prices], axis=1)
     # Wenden Sie inverse_transform auf dieses vollständige Array an

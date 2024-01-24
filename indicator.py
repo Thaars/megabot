@@ -198,43 +198,16 @@ def ma_cross(df, filename, fast_period, slow_period):
 
 
 def fractals(df, filename, period):
-    if period < 5:
-        raise ValueError("Period must be at least 5.")
-
     # fractals will be calculated at the end of `period` bars for the middle of the period
-    # but the signal will be added to the current candle and indicates, that a Fractal occurred
+    # but the signal will be added to the current candle - that means, a fractal occurs right before
     name_bullish = f'fractal_{period}_bullish'
     name_bearish = f'fractal_{period}_bearish'
-    moving = period // 2
 
     if df.get(f'{name_bullish}') is not None \
             and df.get(f'{name_bearish}') is not None:
         return df
 
     print(f'Writing fractal_{period} to dataframe')
-
-    df[name_bullish] = False
-    for i in range(moving, len(df) - moving):
-        if df['high'][i] == max(df['high'][i - moving:i + moving + 1]):
-            df.at[i, name_bullish] = True
-
-    df[name_bearish] = False
-    for i in range(moving, len(df) - moving):
-        if df['low'][i] == min(df['low'][i - moving:i + moving + 1]):
-            df.at[i, name_bearish] = True
-
-    df.to_csv(filename, index=True, sep=";")
-
-    print('done')
-
-    return df
-
-
-def fractals(df, filename, period):
-    # fractals will be calculated at the end of `period` bars for the middle of the period
-    # but the signal will be added to the current candle - that means, a fractal occurs right before
-    name_bullish = f'fractal_{period}_bullish'
-    name_bearish = f'fractal_{period}_bearish'
 
     df[name_bullish] = ((df['high'].shift(2) < df['high'].shift(3)) &
                              (df['high'].shift(1) < df['high'].shift(3)) &
@@ -245,5 +218,9 @@ def fractals(df, filename, period):
                              (df['low'].shift(1) > df['low'].shift(3)) &
                              (df['low'].shift(3) < df['low'].shift(4)) &
                              (df['low'].shift(3) < df['low'].shift(5))).shift(-2)
+
+    df.to_csv(filename, index=True, sep=";")
+
+    print('done')
 
     return df
