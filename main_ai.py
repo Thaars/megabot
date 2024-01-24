@@ -23,9 +23,9 @@ from test_configs import *
 
 
 def main():
-    use_test_configs = False
+    use_test_configs = True
     if use_test_configs:
-        for config in test_configs.test_configs:
+        for config in test_configs:
             execute(config)
     else:
         config = {
