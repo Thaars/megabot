@@ -9,14 +9,13 @@ verify_ssl = true
 mplfinance = "*"
 pandas = "*"
 yfinance = "*"
-mpl-finance = "*"
 python-binance = "*"
 pandas-ta = "*"
 pandas-finance = "*"
 numpy = "*"
 scikit-learn = "*"
 tensorflow = "*"
-mysql = "*"
+mysql-connector-python = "*"
 
 [requires]
 python_version = "3.8"
