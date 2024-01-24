@@ -102,4 +102,32 @@ class DB:
                           "INDEX symbol_timestamp_index(`symbol`,`timestamp`)"
                           ");")
 
+        db_cursor.execute("create table if not exists ai_models("
+                          "`id` int(10) auto_increment primary key,"
+                          "`symbol` varchar(250),"
+                          "`timeframe` varchar(250),"
+                          "`columns` text,"
+                          "`layers` int,"
+                          "`neurones` int,"
+                          "`epochs` int,"
+                          "`training_starts_at` timestamp(3),"
+                          "`training_ends_at` timestamp(3),"
+                          "`hash` varchar(250)"
+                          ");")
+
+        db_cursor.execute("create table if not exists ai_results("
+                          "`id` int(10) auto_increment primary key,"
+                          "`symbol` varchar(250),"
+                          "`timeframe` varchar(250),"
+                          "`model_id` int(10),"
+                          "`model_data` longtext,"
+                          "`starts_at` timestamp(3),"
+                          "`ends_at` timestamp(3),"
+                          "`total_predictions_count` int(10),"
+                          "`true_predictions_count` int(10),"
+                          "`true_predictions_percent` decimal(7,4),"
+                          "`true_on_bullish_percent` decimal(7,4),"
+                          "`true_on_bearish_percent` decimal(7,4)"
+                          ");")
+
         return db

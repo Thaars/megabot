@@ -132,6 +132,7 @@ pf-cache.sqlite
 
 api_key.py
 data_with_indicators/*
+ai_models/*
 
 .idea
 /tmp/
