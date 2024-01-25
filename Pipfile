@@ -7,7 +7,6 @@ verify_ssl = true
 
 [packages]
 mplfinance = "*"
-mpl-finance = "*"
 pandas = "*"
 yfinance = "*"
 python-binance = "*"
