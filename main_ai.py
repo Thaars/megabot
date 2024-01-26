@@ -26,6 +26,7 @@ from test_configs import *
 
 
 def main():
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     use_test_configs = True
 
     gpus = tf.config.list_physical_devices('GPU')
