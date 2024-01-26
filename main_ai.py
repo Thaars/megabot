@@ -27,25 +27,16 @@ from test_configs import *
 
 def main():
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-    use_test_configs = True
-
-    gpus = tf.config.list_physical_devices('GPU')
+    use_test_configs = False
 
     if use_test_configs:
         for config in test_configs:
-            try:
-                if gpus:
-                    tf.config.set_visible_devices(gpus[0], 'GPU')
-                execute(config)
-            except OpError as e:
-                print('Fallback to CPU')
-                tf.config.set_visible_devices([], 'GPU')
-                execute(config)
+            execute(config)
     else:
         config = {
             'symbol': 'BTCUSDT',
             'timeframe': '30m',
-            'layers': 10,
+            'layers': 3,
             'neurones': 100,
             # Liste von Spaltennamen, die als Features dienen sollen
             'columns': ['open', 'high', 'low', 'close',
@@ -55,8 +46,8 @@ def main():
             # Anzahl der Datenpunkte für die Sequenz (wird benutzt um den nachfolgenden Datenpunkt vorherzusagen)
             'sequence_length': 30,
             # Berechnen des Trennindex - 80% der Daten für das Training
-            'split_index': 0.8,
-            'epochs': 1,
+            'split_index': 0.7,
+            'epochs': 50,
         }
         execute(config)
 

@@ -39,10 +39,10 @@ FRACTALS_PERIOD = 5
 # START_DATE = datetime.datetime(year=2021, month=11, day=1, hour=0, minute=0)
 # END_DATE = datetime.datetime(year=2022, month=12, day=31, hour=23, minute=59)
 # 2019 - 2023
-# HISTORICAL_DATA_FROM = '01 Jan 2019'
-# HISTORICAL_DATA_TO = '31 Dec 2023'
-# START_DATE = datetime.datetime(year=2019, month=1, day=1, hour=0, minute=0)
-# END_DATE = datetime.datetime(year=2023, month=12, day=31, hour=23, minute=59)
+HISTORICAL_DATA_FROM = '01 Jan 2019'
+HISTORICAL_DATA_TO = '31 Dec 2023'
+START_DATE = datetime.datetime(year=2019, month=1, day=1, hour=0, minute=0)
+END_DATE = datetime.datetime(year=2023, month=12, day=31, hour=23, minute=59)
 # 2023
 # HISTORICAL_DATA_FROM = '01 Jan 2023'
 # HISTORICAL_DATA_TO = '31 Dec 2023'
@@ -54,10 +54,10 @@ FRACTALS_PERIOD = 5
 # START_DATE = datetime.datetime(year=2022, month=1, day=1, hour=0, minute=0)
 # END_DATE = datetime.datetime(year=2022, month=12, day=31, hour=23, minute=59)
 # 01/2022
-HISTORICAL_DATA_FROM = '1 Jan 2022'
-HISTORICAL_DATA_TO = '31 Jan 2022'
-START_DATE = datetime.datetime(year=2022, month=1, day=1, hour=0, minute=0)
-END_DATE = datetime.datetime(year=2022, month=1, day=31, hour=23, minute=59)
+# HISTORICAL_DATA_FROM = '1 Jan 2022'
+# HISTORICAL_DATA_TO = '31 Jan 2022'
+# START_DATE = datetime.datetime(year=2022, month=1, day=1, hour=0, minute=0)
+# END_DATE = datetime.datetime(year=2022, month=1, day=31, hour=23, minute=59)
 # 2021
 # HISTORICAL_DATA_FROM = '1 Jan 2021'
 # HISTORICAL_DATA_TO = '31 Dec 2021'
