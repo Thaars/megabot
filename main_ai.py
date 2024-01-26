@@ -2,6 +2,8 @@ import json
 import os
 import zlib
 
+import tensorflow as tf
+
 import definitions
 import strategy
 import dataframe
@@ -24,6 +26,16 @@ from test_configs import *
 
 def main():
     use_test_configs = True
+
+    gpus = tf.config.list_physical_devices('GPU')
+    print(json.dumps(gpus))
+    # if gpus:
+    #     # Zum Beispiel, um nur die erste GPU sichtbar zu machen
+    #     try:
+    #         tf.config.set_visible_devices(gpus[0], 'GPU')
+    #     except RuntimeError as e:
+    #         print(e)
+
     if use_test_configs:
         for config in test_configs:
             execute(config)
