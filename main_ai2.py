@@ -1,6 +1,7 @@
 import subprocess
 import json
 import os
+import sys
 
 from test_configs import test_configs
 
@@ -10,7 +11,7 @@ use_test_configs = True
 
 def run_subprocess_with_config(subprocess_config, use_gpu=True, attempt=1):
     config_str = json.dumps(subprocess_config)
-    command = ["python", "execute_ai2.py", config_str]
+    command = [sys.executable, "execute_ai2.py", config_str]
 
     # Setzen der Umgebungsvariablen für die GPU-Nutzung
     env = dict(os.environ, CUDA_VISIBLE_DEVICES=('0' if use_gpu else '-1'))
