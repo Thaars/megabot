@@ -37,6 +37,7 @@ def main():
                     tf.config.set_visible_devices(gpus[0], 'GPU')
                 execute(config)
             except InternalError as e:
+                print('Fallback to CPU')
                 tf.config.set_visible_devices([], 'GPU')
                 execute(config)
     else:
