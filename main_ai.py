@@ -26,7 +26,7 @@ from test_configs import *
 
 
 def main():
-    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     use_test_configs = False
 
     if use_test_configs:
