@@ -53,6 +53,8 @@ def execute(config):
     # Anzahl der Kerzen, die vom Ende des Dataframes für den Plot verwendet werden sollen
     chart_length = 500
 
+    print(json.dumps(config))
+
     db = DB().db
     filename = get_all_binance(config['symbol'], config['timeframe'])
     df = dataframe.trading_data_from_csv(filename)
