@@ -3,6 +3,7 @@ import os
 import zlib
 
 import tensorflow as tf
+from tensorflow.python.framework.errors_impl import InternalError
 
 import definitions
 import strategy
@@ -28,17 +29,16 @@ def main():
     use_test_configs = True
 
     gpus = tf.config.list_physical_devices('GPU')
-    print(json.dumps(gpus))
-    # if gpus:
-    #     # Zum Beispiel, um nur die erste GPU sichtbar zu machen
-    #     try:
-    #         tf.config.set_visible_devices(gpus[0], 'GPU')
-    #     except RuntimeError as e:
-    #         print(e)
 
     if use_test_configs:
         for config in test_configs:
-            execute(config)
+            try:
+                if gpus:
+                    tf.config.set_visible_devices(gpus[0], 'GPU')
+                execute(config)
+            except InternalError as e:
+                tf.config.set_visible_devices([], 'GPU')
+                execute(config)
     else:
         config = {
             'symbol': 'BTCUSDT',
