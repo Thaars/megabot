@@ -3,7 +3,7 @@ import os
 import zlib
 
 import tensorflow as tf
-from tensorflow.python.framework.errors_impl import InternalError
+from tensorflow.python.framework.errors_impl import OpError
 
 import definitions
 import strategy
@@ -36,7 +36,7 @@ def main():
                 if gpus:
                     tf.config.set_visible_devices(gpus[0], 'GPU')
                 execute(config)
-            except InternalError as e:
+            except OpError as e:
                 print('Fallback to CPU')
                 tf.config.set_visible_devices([], 'GPU')
                 execute(config)
