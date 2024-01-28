@@ -26,7 +26,7 @@ def execute(config):
 
     print(json.dumps(config))
 
-    db = DB().db
+    db = DB().connection
     filename = get_all_binance(config['symbol'], config['timeframe'])
     df = dataframe.trading_data_from_csv(filename)
 

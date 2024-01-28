@@ -2,9 +2,6 @@ import json
 import os
 import zlib
 
-import tensorflow as tf
-from tensorflow.python.framework.errors_impl import OpError
-
 import definitions
 import strategy
 import dataframe
@@ -19,10 +16,16 @@ from definitions import *
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM
+from keras.callbacks import EarlyStopping
 import numpy as np
 import mplfinance as mpf
 from datetime import date, datetime
 from test_configs import *
+
+'''
+# laufend den GPU Speicher im CLI anzeigen- - refresh jede Sekunde
+nvidia-smi -l 1
+'''
 
 
 def main():
@@ -48,6 +51,14 @@ def main():
             # Berechnen des Trennindex - 80% der Daten für das Training
             'split_index': 0.7,
             'epochs': 50,
+            # mittlere Größe als Kompromiss (32, 64, 128)
+            # je größer desto mehr Speicherbedarf
+            # todo: einkommentieren !!! ist auskommentiert, da auf dem Server die sdeicherung eines modells nicht
+            #  möglich war - soll erkennen, dass es ein modell gibt, die config dazu speichern und testen - danach
+            #  diese batch size verwenden und unten im code die config verwenden statt der harten 1 - ggf. methode
+            #  um die batch size bestehenden models in der db hinzuizufügen
+            #  (config anpassen, hash berechnen, db updaten, model name updaten)
+            # 'batch_size': 32
         }
         execute(config)
 
@@ -60,7 +71,7 @@ def execute(config):
 
     print(json.dumps(config))
 
-    db = DB().db
+    db = DB()
     filename = get_all_binance(config['symbol'], config['timeframe'])
     df = dataframe.trading_data_from_csv(filename)
 
@@ -112,7 +123,10 @@ def execute(config):
     # suchen des models in der db anhand von model_hash
     model_hash = create_hash(config, train_start_time, train_end_time)
     ai_model_filename = f'{ai_model_path}{model_hash}.keras'
-    model_from_db = get_model_from_db(db, model_hash)
+    model_from_db = db.get_model_from_db(model_hash)
+
+    if os.path.isfile(ai_model_filename) and not model_from_db:
+        db.save_model_to_db(config, train_start_time, train_end_time, model_hash)
 
     if model_from_db and os.path.isfile(ai_model_filename):
         model = load_model(ai_model_filename)
@@ -123,18 +137,35 @@ def execute(config):
         model.add(LSTM(units=config['neurones']))
         model.add(Dense(1))
 
+        # EarlyStopping Callback definieren
+        early_stopper = EarlyStopping(
+            monitor='val_loss',  # Überwachung des Validierungsverlustes
+            min_delta=0.001,  # Die minimale Veränderung, die als Verbesserung betrachtet wird
+            patience=10,  # Anzahl der Epochen ohne signifikante Verbesserung
+            verbose=1,  # Ausgabe von Meldungen aktivieren
+            mode='min',  # Der Modus 'min' bedeutet, dass das Training bei einer Abnahme des 'val_loss' gestoppt wird
+            restore_best_weights=True  # Setzt die Modellgewichte auf die aus der besten Epoche zurück
+        )
+
         # Kompilieren des Modells
         model.compile(optimizer='adam', loss='mean_squared_error')
 
         # Trainieren des Modells
-        model.fit(x_train, y_train, batch_size=1, epochs=config['epochs'])
+        model.fit(
+            x=x_train,
+            y=y_train,
+            batch_size=1,#config['batch_size'],
+            epochs=config['epochs'],
+            validation_data=(x_test, y_test),
+            callbacks=[early_stopper]  # EarlyStopping-Callback hinzufügen
+        )
 
         # Speichern
         model.save(ai_model_filename)
         # in die DB nur, wenn es n noch keinen Eintrag gibt
         # das kann passieren, wenn es bereits ein Model und den DB eintrag gab, das model dann aber gelöscht wurde
         if not model_from_db:
-            save_model_to_db(db, config, train_start_time, train_end_time)
+            db.save_model_to_db(config, train_start_time, train_end_time, model_hash)
 
     # Verwendung des Modells zur Vorhersage
     predicted_prices = model.predict(x_test)
@@ -191,8 +222,8 @@ def execute(config):
     print(f"Genauigkeit bei steigenden Kursen: {accuracy_up} %")
     print(f"Genauigkeit bei fallenden Kursen: {accuracy_down} %")
 
-    save_predictions_to_db(db, config, test_start_time, test_end_time, model_hash, len(predicted_prices), total_correct,
-                           percentage_correct, accuracy_up, accuracy_down)
+    db.save_predictions_to_db(config, test_start_time, test_end_time, model_hash, len(predicted_prices), total_correct,
+                              percentage_correct, accuracy_up, accuracy_down)
 
     return
 
@@ -264,94 +295,15 @@ def create_hash(config, start_time, end_time):
     return zlib.adler32(json.dumps(general_hash_values).encode('UTF-8')) & 0xffffffff
 
 
-def get_model_from_db(db, model_hash):
-    db_cursor = db.cursor(dictionary=True)
-    db_cursor.execute(
-        "select * from ai_models where `hash` = %s;",
-        [
-            model_hash,
-        ]
-    )
-    result = db_cursor.fetchone()
-    if result:
-        return result
-    return None
 
 
-def save_model_to_db(db, config, train_start_time, train_end_time):
-    db_cursor = db.cursor()
-    db_cursor.execute("insert into ai_models("
-                            "`symbol`,"
-                            "`timeframe`,"
-                            "`columns`,"
-                            "`layers`,"
-                            "`neurones`,"
-                            "`epochs`,"
-                            "`training_starts_at`,"
-                            "`training_ends_at`,"
-                            "`hash`"
-                          ") values("
-                            "%s,%s,%s,%s,%s,%s,%s,%s,%s"
-                          ")", (
-                            config['symbol'],
-                            config['timeframe'],
-                            json.dumps(config['columns']),
-                            config['layers'],
-                            config['neurones'],
-                            config['epochs'],
-                            get_mysql_datetime_from_datetimeindex(train_start_time),
-                            get_mysql_datetime_from_datetimeindex(train_end_time),
-                            create_hash(config, train_start_time, train_end_time)
-                          ))
-    db.commit()
-    return db_cursor.lastrowid
 
 
-def save_predictions_to_db(db, config, test_start_time, test_end_time, model_hash, total_predictions_count,
-                           true_predictions_count, true_predictions_percent, true_on_bullish_percent,
-                           true_on_bearish_percent):
-    model_from_db = get_model_from_db(db, model_hash)
-    db_cursor = db.cursor()
-    db_cursor.execute("insert into ai_results("
-                            "`symbol`,"
-                            "`timeframe`,"
-                            "`model_id`,"
-                            "`model_data`,"
-                            "`starts_at`,"
-                            "`ends_at`,"
-                            "`total_predictions_count`,"
-                            "`true_predictions_count`,"
-                            "`true_predictions_percent`,"
-                            "`true_on_bullish_percent`,"
-                            "`true_on_bearish_percent`"
-                          ") values("
-                            "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
-                          ")", (
-                            config['symbol'],
-                            config['timeframe'],
-                            model_from_db['id'],
-                            json.dumps(model_from_db, default=default_json_converter),
-                            get_mysql_datetime_from_datetimeindex(test_start_time),
-                            get_mysql_datetime_from_datetimeindex(test_end_time),
-                            int(total_predictions_count),
-                            int(true_predictions_count),
-                            float(round(true_predictions_percent, 2)),
-                            float(round(true_on_bullish_percent, 2)),
-                            float(round(true_on_bearish_percent, 2))
-                          ))
-    db.commit()
 
 
-def get_mysql_datetime_from_datetimeindex(datetimeindex):
-    datetime_obj = datetime.strptime(str(datetimeindex), "%Y-%m-%d %H:%M:%S%z")
-    return datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
 
 
-# Funktion, die festlegt, wie nicht-serialisierbare Objekte behandelt werden sollen
-def default_json_converter(o):
-    if isinstance(o, datetime):
-        return o.isoformat()
-    raise TypeError("Object of type '%s' is not JSON serializable" % type(o).__name__)
+
 
 
 main()

@@ -118,7 +118,7 @@ def get_tradovate_data(symbol, timeframe="1m"):
     if os.path.isfile(filename):
         data_df = pd.read_csv(filename)
     else:
-        db = DB().db
+        db = DB().connection
         db_cursor = db.cursor(dictionary=True)
         db_cursor.execute(
             "select * from minute_bars where `symbol` = %s and `timestamp` between %s and %s order by `timestamp` asc;",

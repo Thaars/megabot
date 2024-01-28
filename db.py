@@ -1,28 +1,48 @@
+import json
+from datetime import datetime
+
 import mysql.connector
 import db_credentials
+from sshtunnel import SSHTunnelForwarder
+import pymysql
 
 
 # https://www.edureka.co/blog/python-database-connection/#MySQL
 class DB:
     def __init__(self):
-        self.db = self.connect_db()
+        self.connection = self.connect_db()
+        self.create_tables()
+
+    def disconnect(self):
+        # Cursor und Verbindung schließen
+        self.connection.cursor.close()
+        self.connection.close()
 
     def connect_db(self):
+        # Erstellen des SSH-Tunnels
+        # with SSHTunnelForwarder(
+        #         (db_credentials.SSH_HOST, 22),
+        #         ssh_username=db_credentials.SSH_USERNAME,
+        #         ssh_pkey=db_credentials.SSH_PRIVATE_KEY_PATH,
+        #         remote_bind_address=(db_credentials.MYSQL_HOST, db_credentials.MYSQL_PORT),
+        #         local_bind_address=('127.0.0.1', 3306)
+        # ) as tunnel:
+        # Verbindung zur Datenbank herstellen
         db = mysql.connector.connect(
             host=db_credentials.MYSQL_HOST,
+            # port=tunnel.local_bind_port,
             user=db_credentials.MYSQL_USER,
-            passwd=db_credentials.MYSQL_PASS
-        )
-        db_cursor = db.cursor()
-        db_cursor.execute(f"create database if not exists `{db_credentials.MYSQL_DB}`")
-
-        db = mysql.connector.connect(
-            host=db_credentials.MYSQL_HOST,
-            user=db_credentials.MYSQL_USER,
-            passwd=db_credentials.MYSQL_PASS,
+            password=db_credentials.MYSQL_PASSWORD,
             database=db_credentials.MYSQL_DB
         )
-        db_cursor = db.cursor()
+
+        return db
+
+    def create_tables(self):
+        self.connection.ping(reconnect=True)
+        db_cursor = self.connection.cursor()
+        db_cursor.execute(f"create database if not exists `{db_credentials.MYSQL_DB}`")
+
         db_cursor.execute("create table if not exists results("
                           "`id` int(10) auto_increment primary key,"
                           "`general_hash` varchar(250),"
@@ -130,4 +150,91 @@ class DB:
                           "`true_on_bearish_percent` decimal(7,4)"
                           ");")
 
-        return db
+    def get_model_from_db(self, model_hash):
+        self.connection.ping(reconnect=True)
+        db_cursor = self.connection.cursor(dictionary=True)
+        db_cursor.execute(
+            "select * from ai_models where `hash` = %s;",
+            [
+                model_hash,
+            ]
+        )
+        result = db_cursor.fetchone()
+        if result:
+            return result
+        return None
+
+    def save_model_to_db(self, config, train_start_time, train_end_time, model_hash):
+        self.connection.ping(reconnect=True)
+        db_cursor = self.connection.cursor()
+        db_cursor.execute("insert into ai_models("
+                                "`symbol`,"
+                                "`timeframe`,"
+                                "`columns`,"
+                                "`layers`,"
+                                "`neurones`,"
+                                "`epochs`,"
+                                "`training_starts_at`,"
+                                "`training_ends_at`,"
+                                "`hash`"
+                              ") values("
+                                "%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                              ")", (
+                                config['symbol'],
+                                config['timeframe'],
+                                json.dumps(config['columns']),
+                                config['layers'],
+                                config['neurones'],
+                                config['epochs'],
+                                self.get_mysql_datetime_from_datetimeindex(train_start_time),
+                                self.get_mysql_datetime_from_datetimeindex(train_end_time),
+                                model_hash
+                              ))
+        self.connection.commit()
+        return db_cursor.lastrowid
+
+    def save_predictions_to_db(self, config, test_start_time, test_end_time, model_hash, total_predictions_count,
+                               true_predictions_count, true_predictions_percent, true_on_bullish_percent,
+                               true_on_bearish_percent):
+        self.connection.ping(reconnect=True)
+        model_from_db = self.get_model_from_db(model_hash)
+        db_cursor = self.connection.cursor()
+        db_cursor.execute("insert into ai_results("
+                                "`symbol`,"
+                                "`timeframe`,"
+                                "`model_id`,"
+                                "`model_data`,"
+                                "`starts_at`,"
+                                "`ends_at`,"
+                                "`total_predictions_count`,"
+                                "`true_predictions_count`,"
+                                "`true_predictions_percent`,"
+                                "`true_on_bullish_percent`,"
+                                "`true_on_bearish_percent`"
+                              ") values("
+                                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                              ")", (
+                                config['symbol'],
+                                config['timeframe'],
+                                model_from_db['id'],
+                                json.dumps(model_from_db, default=self.default_json_converter),
+                                self.get_mysql_datetime_from_datetimeindex(test_start_time),
+                                self.get_mysql_datetime_from_datetimeindex(test_end_time),
+                                int(total_predictions_count),
+                                int(true_predictions_count),
+                                float(round(true_predictions_percent, 2)),
+                                float(round(true_on_bullish_percent, 2)),
+                                float(round(true_on_bearish_percent, 2))
+                              ))
+        self.connection.commit()
+
+    def get_mysql_datetime_from_datetimeindex(self, datetimeindex):
+        datetime_obj = datetime.strptime(str(datetimeindex), "%Y-%m-%d %H:%M:%S%z")
+        return datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Funktion, die festlegt, wie nicht-serialisierbare Objekte behandelt werden sollen
+    def default_json_converter(self, o):
+        if isinstance(o, datetime):
+            return o.isoformat()
+        raise TypeError("Object of type '%s' is not JSON serializable" % type(o).__name__)
+

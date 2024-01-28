@@ -28,7 +28,7 @@ def worker():
 
 
 def main():
-    db = DB().db
+    db = DB().connection
     # filename = get_tradovate_data(definitions.SYMBOL, definitions.TIMEFRAME)
     filename = get_all_binance(definitions.SYMBOL, definitions.TIMEFRAME)
     # # filename = get_stock_data(SYMBOL, timeframe=TIMEFRAME)
