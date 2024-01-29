@@ -29,7 +29,7 @@ class DB:
 
     def create_tables(self):
         self.connection.ping(reconnect=True)
-        db_cursor = self.connection.cursor()
+        db_cursor = self.connection.cursor(buffered=True)
         db_cursor.execute(f"create database if not exists `{db_credentials.MYSQL_DB}`")
 
         db_cursor.execute("create table if not exists results("
@@ -139,10 +139,11 @@ class DB:
                           "`true_on_bullish_percent` decimal(7,4),"
                           "`true_on_bearish_percent` decimal(7,4)"
                           ");")
+        db_cursor.close()
 
     def get_model_from_db(self, model_hash):
         self.connection.ping(reconnect=True)
-        db_cursor = self.connection.cursor(dictionary=True)
+        db_cursor = self.connection.cursor(buffered=True, dictionary=True)
         db_cursor.execute(
             "select * from ai_models where `hash` = %s;",
             [
@@ -150,13 +151,14 @@ class DB:
             ]
         )
         result = db_cursor.fetchone()
+        db_cursor.close()
         if result:
             return result
         return None
 
     def save_model_to_db(self, config, train_start_time, train_end_time, model_hash, early_stopping_epoch=None):
         self.connection.ping(reconnect=True)
-        db_cursor = self.connection.cursor()
+        db_cursor = self.connection.cursor(buffered=True)
         db_cursor.execute("insert into ai_models("
                                 "`symbol`,"
                                 "`timeframe`,"
@@ -183,14 +185,16 @@ class DB:
                                 model_hash
                               ))
         self.connection.commit()
-        return db_cursor.lastrowid
+        last_id = db_cursor.lastrowid
+        db_cursor.close()
+        return last_id
 
     def save_predictions_to_db(self, config, test_start_time, test_end_time, model_hash, total_predictions_count,
                                true_predictions_count, true_predictions_percent, true_on_bullish_percent,
                                true_on_bearish_percent):
         self.connection.ping(reconnect=True)
         model_from_db = self.get_model_from_db(model_hash)
-        db_cursor = self.connection.cursor()
+        db_cursor = self.connection.cursor(buffered=True)
         db_cursor.execute("insert into ai_results("
                                 "`symbol`,"
                                 "`timeframe`,"
@@ -219,6 +223,7 @@ class DB:
                                 float(round(true_on_bearish_percent, 2))
                               ))
         self.connection.commit()
+        db_cursor.close()
 
     def get_mysql_datetime_from_datetimeindex(self, datetimeindex):
         datetime_obj = datetime.strptime(str(datetimeindex), "%Y-%m-%d %H:%M:%S%z")
