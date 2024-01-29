@@ -119,6 +119,7 @@ class DB:
                           "`layers` int,"
                           "`neurones` int,"
                           "`epochs` int,"
+                          "`shap` text,"
                           "`early_stopped_epoch` int null,"
                           "`training_starts_at` timestamp(3),"
                           "`training_ends_at` timestamp(3),"
@@ -156,7 +157,8 @@ class DB:
             return result
         return None
 
-    def save_model_to_db(self, config, train_start_time, train_end_time, model_hash, early_stopping_epoch=None):
+    def save_model_to_db(self, config, train_start_time, train_end_time, model_hash, early_stopping_epoch=None,
+                         average_shap_json=None):
         self.connection.ping(reconnect=True)
         db_cursor = self.connection.cursor(buffered=True)
         db_cursor.execute("insert into ai_models("
@@ -167,11 +169,12 @@ class DB:
                                 "`neurones`,"
                                 "`epochs`,"
                                 "`early_stopped_epoch`,"
+                                "`shap`,"
                                 "`training_starts_at`,"
                                 "`training_ends_at`,"
                                 "`hash`"
                               ") values("
-                                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
                               ")", (
                                 config['symbol'],
                                 config['timeframe'],
@@ -180,6 +183,7 @@ class DB:
                                 config['neurones'],
                                 config['epochs'],
                                 early_stopping_epoch,
+                                average_shap_json,
                                 self.get_mysql_datetime_from_datetimeindex(train_start_time),
                                 self.get_mysql_datetime_from_datetimeindex(train_end_time),
                                 model_hash

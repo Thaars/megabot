@@ -13,6 +13,7 @@ from api import get_all_binance, get_stock_data, get_tradovate_data
 from db import DB
 from portfolio import Portfolio
 from definitions import *
+import pandas as pd
 
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential, load_model
@@ -21,6 +22,7 @@ from keras.callbacks import EarlyStopping
 import numpy as np
 import mplfinance as mpf
 from datetime import date, datetime
+import shap
 from test_configs import *
 from local_config import *
 
@@ -148,12 +150,24 @@ def execute(config):
         else:
             early_stopping_epoch = None
 
+        # Initialisieren des SHAP Explainers
+        explainer = shap.DeepExplainer(model, x_train)
+        # Berechnen der SHAP-Werte für den Testdatensatz
+        shap_values = explainer.shap_values(x_test)
+        # Umwandeln der SHAP-Werte in einen durchschnittlichen Wert pro Feature
+        shap_values_df = pd.DataFrame(shap_values[0], columns=feature_columns)
+        average_shap_values = shap_values_df.mean().reset_index()
+        average_shap_values.columns = ['feature', 'average_shap_value']
+        # Konvertieren der durchschnittlichen SHAP-Werte in einen JSON-String
+        average_shap_json = average_shap_values.to_json(orient='records', indent=4)
+
         # Speichern
         model.save(ai_model_filename)
         # in die DB nur, wenn es n noch keinen Eintrag gibt
         # das kann passieren, wenn es bereits ein Model und den DB eintrag gab, das model dann aber gelöscht wurde
         if not model_from_db:
-            db.save_model_to_db(config, train_start_time, train_end_time, model_hash, early_stopping_epoch)
+            db.save_model_to_db(config, train_start_time, train_end_time, model_hash, early_stopping_epoch,
+                                average_shap_json)
 
     # Verwendung des Modells zur Vorhersage
     predicted_prices = model.predict(x_test)
