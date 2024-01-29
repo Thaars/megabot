@@ -112,9 +112,10 @@ def execute(config):
     else:
         model = Sequential()
         for layer in range(config['layers']):
-            model.add(LSTM(units=config['neurones'], return_sequences=True, input_shape=(None, num_features)))
-        model.add(LSTM(units=config['neurones']))
-        model.add(Dense(1))
+            model.add(LSTM(units=config['neurones'], return_sequences=True, input_shape=(None, num_features),
+                           kernel_initializer='glorot_uniform'))
+        model.add(LSTM(units=config['neurones'], kernel_initializer='glorot_uniform'))
+        model.add(Dense(1, kernel_initializer='he_normal'))
 
         # EarlyStopping Callback definieren
         early_stopper = EarlyStopping(
