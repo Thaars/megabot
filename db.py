@@ -119,6 +119,7 @@ class DB:
                           "`layers` int,"
                           "`neurones` int,"
                           "`epochs` int,"
+                          "`early_stopped_epoch` int null,"
                           "`training_starts_at` timestamp(3),"
                           "`training_ends_at` timestamp(3),"
                           "`hash` varchar(250)"
@@ -153,7 +154,7 @@ class DB:
             return result
         return None
 
-    def save_model_to_db(self, config, train_start_time, train_end_time, model_hash):
+    def save_model_to_db(self, config, train_start_time, train_end_time, model_hash, early_stopping_epoch=None):
         self.connection.ping(reconnect=True)
         db_cursor = self.connection.cursor()
         db_cursor.execute("insert into ai_models("
@@ -163,11 +164,12 @@ class DB:
                                 "`layers`,"
                                 "`neurones`,"
                                 "`epochs`,"
+                                "`early_stopped_epoch`,"
                                 "`training_starts_at`,"
                                 "`training_ends_at`,"
                                 "`hash`"
                               ") values("
-                                "%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
                               ")", (
                                 config['symbol'],
                                 config['timeframe'],
@@ -175,6 +177,7 @@ class DB:
                                 config['layers'],
                                 config['neurones'],
                                 config['epochs'],
+                                early_stopping_epoch,
                                 self.get_mysql_datetime_from_datetimeindex(train_start_time),
                                 self.get_mysql_datetime_from_datetimeindex(train_end_time),
                                 model_hash

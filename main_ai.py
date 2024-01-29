@@ -120,7 +120,7 @@ def execute(config):
         # EarlyStopping Callback definieren
         early_stopper = EarlyStopping(
             monitor='val_loss',  # Überwachung des Validierungsverlustes
-            min_delta=0.001,  # Die minimale Veränderung, die als Verbesserung betrachtet wird
+            min_delta=0.01,  # Die minimale Veränderung, die als Verbesserung betrachtet wird
             patience=10,  # Anzahl der Epochen ohne signifikante Verbesserung
             verbose=1,  # Ausgabe von Meldungen aktivieren
             mode='min',  # Der Modus 'min' bedeutet, dass das Training bei einer Abnahme des 'val_loss' gestoppt wird
@@ -140,12 +140,18 @@ def execute(config):
             callbacks=[early_stopper]  # EarlyStopping-Callback hinzufügen
         )
 
+        # Überprüfen, ob Early Stopping stattgefunden hat
+        if early_stopper.stopped_epoch > 0:
+            early_stopping_epoch = early_stopper.stopped_epoch
+        else:
+            early_stopping_epoch = None
+
         # Speichern
         model.save(ai_model_filename)
         # in die DB nur, wenn es n noch keinen Eintrag gibt
         # das kann passieren, wenn es bereits ein Model und den DB eintrag gab, das model dann aber gelöscht wurde
         if not model_from_db:
-            db.save_model_to_db(config, train_start_time, train_end_time, model_hash)
+            db.save_model_to_db(config, train_start_time, train_end_time, model_hash, early_stopping_epoch)
 
     # Verwendung des Modells zur Vorhersage
     predicted_prices = model.predict(x_test)
