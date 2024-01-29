@@ -120,7 +120,7 @@ def execute(config):
         # EarlyStopping Callback definieren
         early_stopper = EarlyStopping(
             monitor='val_loss',  # Überwachung des Validierungsverlustes
-            min_delta=0.01,  # Die minimale Veränderung, die als Verbesserung betrachtet wird
+            min_delta=0.1,  # Die minimale Veränderung, die als Verbesserung betrachtet wird
             patience=10,  # Anzahl der Epochen ohne signifikante Verbesserung
             verbose=1,  # Ausgabe von Meldungen aktivieren
             mode='min',  # Der Modus 'min' bedeutet, dass das Training bei einer Abnahme des 'val_loss' gestoppt wird
