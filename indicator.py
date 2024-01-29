@@ -88,9 +88,9 @@ def last_5_10_15_20_candles(df, filename):
                 if lowest_low == 0 or row['low'] < lowest_low:
                     lowest_low = row['low']
 
-        data[f'highest_high_{number_of_candles}'].append(highest_high)
-        data[f'lowest_low_{number_of_candles}'].append(lowest_low)
-        data[f'largest_body_{number_of_candles}'].append(largest_body)
+        data[f'highest_high_{number_of_candles}'].append(round(highest_high, 4))
+        data[f'lowest_low_{number_of_candles}'].append(round(lowest_low, 4))
+        data[f'largest_body_{number_of_candles}'].append(round(largest_body, 4))
 
     last5 = list()
     last10 = list()
@@ -158,7 +158,7 @@ def aroon(df, filename, period):
         _aroon_up = (_df['high'].rolling(window=_period).apply(lambda x: x.argmax(), raw=True) / (_period - 1)) * 100
         _aroon_down = (_df['low'].rolling(window=_period).apply(lambda x: x.argmin(), raw=True) / (_period - 1)) * 100
 
-        return _aroon_up, _aroon_down
+        return round(_aroon_up, 4), round(_aroon_down, 4)
 
     aroon_up, aroon_down = aroon_indicator(df, period)
     df[f'{name}_up'] = aroon_up
@@ -185,8 +185,8 @@ def ma_cross(df, filename, fast_period, slow_period):
 
     print(f'Writing {name_fast}, {name_slow} and ma_cross of both to dataframe')
 
-    df[name_fast] = df['close'].rolling(window=fast_period).mean()
-    df[name_slow] = df['close'].rolling(window=slow_period).mean()
+    df[name_fast] = df['close'].rolling(window=fast_period).mean().round(4)
+    df[name_slow] = df['close'].rolling(window=slow_period).mean().round(4)
     df[name_golden_cross] = (df[name_fast] > df[name_slow]) & (df[name_fast].shift(1) <= df[name_slow].shift(1))
     df[name_death_cross] = (df[name_fast] < df[name_slow]) & (df[name_fast].shift(1) >= df[name_slow].shift(1))
 
