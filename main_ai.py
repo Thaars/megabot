@@ -16,6 +16,7 @@ from definitions import *
 import pandas as pd
 
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 from keras.models import Sequential, load_model
 from keras.layers import Dense, LSTM, Dropout
 from keras.callbacks import EarlyStopping
@@ -50,53 +51,9 @@ def execute(config):
     print(json.dumps(config))
 
     db = DB()
-    filename = get_all_binance(config['symbol'], config['timeframe'])
-    df = dataframe.trading_data_from_csv(filename)
-
-    df = indicator.last_5_10_15_20_candles(df, filename)
-    df = indicator.aroon(df, filename, definitions.AROON_PERIOD)
-    df = indicator.ma_cross(df, filename, definitions.MA_FAST_PERIOD, definitions.MA_SLOW_PERIOD)
-    df = indicator.fractals(df, filename, definitions.FRACTALS_PERIOD)
-
-    df = df.loc[f'{definitions.START_DATE}':f'{definitions.END_DATE}']
-
-    # Schritt 1: Frühesten gültigen Zeitpunkt für jede Spalte bestimmen
-    first_valid_timestamps = df.apply(lambda col: col.first_valid_index())
-    # Schritt 2: Spätesten dieser frühesten Zeitpunkte ermitteln
-    latest_first_valid_timestamp = first_valid_timestamps.max()
-    # Schritt 3: DataFrame filtern, um nur Daten ab diesem Zeitpunkt einzuschließen
-    df = df.loc[latest_first_valid_timestamp:]
-
-    # Liste von Spaltennamen, die als Features dienen sollen
-    feature_columns = config['columns']
-    # Anzahl der Features dynamisch aus der Länge der feature_columns Liste ableiten
-    num_features = len(feature_columns)
-
-    split_index = int(len(df) * config['split_index'])  # z.B. 80% der Daten für das Training
-    df_train = df[:split_index]
-    df_test = df[split_index:]
-
-    # Start- und Endzeitpunkt der Trainingsdaten
-    train_start_time = df_train.index[0]
-    train_end_time = df_train.index[-1]
-    # Start- und Endzeitpunkt der Testdaten
-    test_start_time = df_test.index[0]
-    test_end_time = df_test.index[-1]
-
-    # Auswahl der Feature-Spalten für Trainings- und Testdatensätze
-    df_train_features = df_train[feature_columns]
-    df_test_features = df_test[feature_columns]
-
-    # Skalieren der Feature-Daten
-    scaler = MinMaxScaler()
-    scaled_train_data = scaler.fit_transform(df_train_features)  # Skalieren basierend auf Trainingsdaten
-    scaled_test_data = scaler.transform(df_test_features)  # Anwendung derselben Transformation auf Testdaten
-
-    # Anzahl der Datenpunkte für die Sequenz (wird benutzt um den nachfolgenden Datenpunkt vorherzusagen)
-    sequence_length = config['sequence_length']
-    # Umformen der Daten für das LSTM-Modell
-    x_train, y_train = create_sequences(df_train, scaled_train_data, sequence_length)
-    x_test, y_test = create_sequences(df_test, scaled_test_data, sequence_length)
+    # prepare_df_for_training
+    df, scaler, x_train, y_train, x_test, y_test, train_start_time, train_end_time, test_start_time, test_end_time, \
+        num_features, feature_columns = prepare_df_for_training(config)
 
     # suchen des models in der db anhand von model_hash
     model_hash = create_hash(config, train_start_time, train_end_time)
@@ -112,104 +69,27 @@ def execute(config):
     if model_from_db and os.path.isfile(ai_model_filename):
         model = load_model(ai_model_filename)
     else:
-        model = Sequential()
-        for layer in range(config['layers']):
-            model.add(LSTM(units=config['neurones'], return_sequences=True, input_shape=(None, num_features),
-                           kernel_initializer='glorot_uniform'))
-            model.add(Dropout(0.5))  # Dropout-Schicht mit 50% Auslasswahrscheinlichkeit
-        model.add(LSTM(units=config['neurones'], kernel_initializer='glorot_uniform'))
-        model.add(Dropout(0.5))  # Dropout-Schicht mit 50% Auslasswahrscheinlichkeit
-        model.add(Dense(1, kernel_initializer='he_normal'))
+        model = train_model(db, config, num_features, x_train, y_train, x_test, y_test, feature_columns,
+                            ai_model_filename, model_from_db, train_start_time, train_end_time, model_hash)
 
-        # EarlyStopping Callback definieren
-        early_stopper = EarlyStopping(
-            monitor='val_loss',  # Überwachung des Validierungsverlustes
-            min_delta=0.0001,  # Die minimale Veränderung, die als Verbesserung betrachtet wird
-            patience=10,  # Anzahl der Epochen ohne signifikante Verbesserung
-            verbose=1,  # Ausgabe von Meldungen aktivieren
-            mode='min',  # Der Modus 'min' bedeutet, dass das Training bei einer Abnahme des 'val_loss' gestoppt wird
-            restore_best_weights=True  # Setzt die Modellgewichte auf die aus der besten Epoche zurück
-        )
+    # predict_directions
+    predicted_directions, predicted_prices, actual_prices = predict_directions(df, model, x_test, num_features, scaler)
 
-        # Kompilieren des Modells
-        model.compile(optimizer='adam', loss='mean_squared_error')
+    # make_long_term_predictions
+    long_term_predictions = make_long_term_predictions(model, x_test, 10)
 
-        # Trainieren des Modells
-        model.fit(
-            x=x_train,
-            y=y_train,
-            batch_size=config['batch_size'],
-            epochs=config['epochs'],
-            validation_data=(x_test, y_test),
-            callbacks=[early_stopper]  # EarlyStopping-Callback hinzufügen
-        )
+    average_price = df['close'].mean()  # Durchschnittspreis von Bitcoin
+    # Angenommen, y_test sind die tatsächlichen Werte
+    mse = mean_squared_error(y_test, long_term_predictions)
+    mae = mean_absolute_error(y_test, long_term_predictions)
+    mae_percent = (mae / average_price) * 100
+    mse_percent = (np.sqrt(mse) / average_price) * 100
 
-        # Überprüfen, ob Early Stopping stattgefunden hat
-        if early_stopper.stopped_epoch > 0:
-            early_stopping_epoch = early_stopper.stopped_epoch
-        else:
-            early_stopping_epoch = None
+    print(f"MAE als Prozentsatz des Durchschnittspreises: {mae_percent:.2f}%")
+    print(f"RMSE als Prozentsatz des Durchschnittspreises: {mse_percent:.2f}%")
 
-        # Initialisieren des SHAP Explainers
-        explainer = shap.DeepExplainer(model, x_train)
-        # Berechnen der SHAP-Werte für den Testdatensatz
-        shap_values = explainer.shap_values(x_test)
-        # Umwandeln der SHAP-Werte in einen durchschnittlichen Wert pro Feature
-        shap_values_df = pd.DataFrame(shap_values[0], columns=feature_columns)
-        average_shap_values = shap_values_df.mean().reset_index()
-        average_shap_values.columns = ['feature', 'average_shap_value']
-        # Konvertieren der durchschnittlichen SHAP-Werte in einen JSON-String
-        average_shap_json = average_shap_values.to_json(orient='records', indent=4)
-
-        # Speichern
-        model.save(ai_model_filename)
-        # in die DB nur, wenn es n noch keinen Eintrag gibt
-        # das kann passieren, wenn es bereits ein Model und den DB eintrag gab, das model dann aber gelöscht wurde
-        if not model_from_db:
-            db.save_model_to_db(config, train_start_time, train_end_time, model_hash, early_stopping_epoch,
-                                average_shap_json)
-
-    # Verwendung des Modells zur Vorhersage
-    predicted_prices = model.predict(x_test)
-    # Berechnen der Differenzen zwischen aufeinanderfolgenden vorhergesagten Preisen
-    price_changes = np.diff(predicted_prices.squeeze(), prepend=predicted_prices[0])
-    # Bestimmen der Richtungen basierend auf den Preisänderungen (1 für steigend, -1 für fallend)
-    predicted_directions = np.sign(price_changes)
-    # Umwandeln von 0 zu -1, falls Sie keine neutralen Vorhersagen haben möchten
-    predicted_directions[predicted_directions == 0] = -1
-    # Angenommen, predicted_prices ist Ihr Array von vorhergesagten 'close' Preisen mit Form (n_samples, 1)
-    # Erstellen Sie ein Dummy-Array mit Nullen oder einem anderen Platzhalterwert
-    # für die anderen Spalten, die beim Skalieren berücksichtigt wurden
-    dummy_features = np.zeros(
-        (predicted_prices.shape[0], num_features-1))  # Erstellt ein Array von Nullen für die restlichen Features
-    # Fügen Sie die vorhergesagten Preise zu diesem Array hinzu, um die korrekte Form zu erhalten
-    predicted_full = np.concatenate([dummy_features, predicted_prices], axis=1)
-    # Wenden Sie inverse_transform auf dieses vollständige Array an
-    predicted_full_inverse = scaler.inverse_transform(predicted_full)
-    # Extrahieren Sie die skalierten 'close' Preise (angenommen, sie befinden sich in der letzten Spalte)
-    predicted_prices = predicted_full_inverse[:, -1]
-    n = len(predicted_prices)
-    actual_prices = df['close'][-n:].values
-
-    if local_config.PLOT_CHART:
-        print("Zu vergleichende Kerzen: ", local_config.CHART_LENGTH)
-        # Erstellen einer expliziten Kopie von df, um SettingWithCopyWarning zu vermeiden
-        filtered_df = df.iloc[-local_config.CHART_LENGTH:].copy()
-        # Schneiden Sie die predicted_directions, um nur die letzten n Richtungen zu haben
-        filtered_predicted_directions = predicted_directions[-local_config.CHART_LENGTH:]
-        # zum aktuellen df hinzufügen
-        filtered_df.loc[:, 'Predictions'] = filtered_predicted_directions
-
-        # Erstellen einer Serie, die `NaN` für die `close`-Preise setzt, wo die Vorhersage nicht 1 oder -1 ist
-        up_prices = filtered_df['close'].where(filtered_df['Predictions'] == 1)
-        down_prices = filtered_df['close'].where(filtered_df['Predictions'] == -1)
-        # Erstellen der Addplot-Objekte
-        up_scatter = mpf.make_addplot(up_prices, type='scatter', markersize=100, marker='^', color='green')
-        down_scatter = mpf.make_addplot(down_prices, type='scatter', markersize=100, marker='v', color='red')
-
-        # Erstellen des kombinierten Candlestick-Charts mit vorhergesagten Richtungen
-        mpf.plot(filtered_df, type='candle', style='charles', addplot=[up_scatter, down_scatter],
-                 volume=True, figratio=(10, 6), title='Tatsächliche Kurse mit Vorhersagen')
+    # plot_chart
+    plot_chart(df, predicted_directions)
 
     # Berechnung der Preisänderungen
     actual_changes = np.diff(actual_prices)
@@ -225,7 +105,7 @@ def execute(config):
     print(f"Genauigkeit bei fallenden Kursen: {accuracy_down} %")
 
     db.save_predictions_to_db(config, test_start_time, test_end_time, model_hash, len(predicted_prices), total_correct,
-                              percentage_correct, accuracy_up, accuracy_down)
+                              percentage_correct, accuracy_up, accuracy_down, mse_percent, mae_percent)
 
     return
 
@@ -297,12 +177,180 @@ def create_hash(config, start_time, end_time):
     return zlib.adler32(json.dumps(general_hash_values).encode('UTF-8')) & 0xffffffff
 
 
+def prepare_df_for_training(config):
+    filename = get_all_binance(config['symbol'], config['timeframe'])
+    df = dataframe.trading_data_from_csv(filename)
+
+    df = indicator.last_5_10_15_20_candles(df, filename)
+    df = indicator.aroon(df, filename, definitions.AROON_PERIOD)
+    df = indicator.ma_cross(df, filename, definitions.MA_FAST_PERIOD, definitions.MA_SLOW_PERIOD)
+    df = indicator.fractals(df, filename, definitions.FRACTALS_PERIOD)
+
+    df = df.loc[f'{definitions.START_DATE}':f'{definitions.END_DATE}']
+
+    # Schritt 1: Frühesten gültigen Zeitpunkt für jede Spalte bestimmen
+    first_valid_timestamps = df.apply(lambda col: col.first_valid_index())
+    # Schritt 2: Spätesten dieser frühesten Zeitpunkte ermitteln
+    latest_first_valid_timestamp = first_valid_timestamps.max()
+    # Schritt 3: DataFrame filtern, um nur Daten ab diesem Zeitpunkt einzuschließen
+    df = df.loc[latest_first_valid_timestamp:]
+
+    # Liste von Spaltennamen, die als Features dienen sollen
+    feature_columns = config['columns']
+    # Anzahl der Features dynamisch aus der Länge der feature_columns Liste ableiten
+    num_features = len(feature_columns)
+
+    split_index = int(len(df) * config['split_index'])  # z.B. 80% der Daten für das Training
+    df_train = df[:split_index]
+    df_test = df[split_index:]
+
+    # Start- und Endzeitpunkt der Trainingsdaten
+    train_start_time = df_train.index[0]
+    train_end_time = df_train.index[-1]
+    # Start- und Endzeitpunkt der Testdaten
+    test_start_time = df_test.index[0]
+    test_end_time = df_test.index[-1]
+
+    # Auswahl der Feature-Spalten für Trainings- und Testdatensätze
+    df_train_features = df_train[feature_columns]
+    df_test_features = df_test[feature_columns]
+
+    # Skalieren der Feature-Daten
+    scaler = MinMaxScaler()
+    scaled_train_data = scaler.fit_transform(df_train_features)  # Skalieren basierend auf Trainingsdaten
+    scaled_test_data = scaler.transform(df_test_features)  # Anwendung derselben Transformation auf Testdaten
+
+    # Anzahl der Datenpunkte für die Sequenz (wird benutzt um den nachfolgenden Datenpunkt vorherzusagen)
+    sequence_length = config['sequence_length']
+    # Umformen der Daten für das LSTM-Modell
+    x_train, y_train = create_sequences(df_train, scaled_train_data, sequence_length)
+    x_test, y_test = create_sequences(df_test, scaled_test_data, sequence_length)
+
+    return df, scaler, x_train, y_train, x_test, y_test, train_start_time, train_end_time, test_start_time, \
+           test_end_time, num_features, feature_columns
 
 
+def train_model(db, config, num_features, x_train, y_train, x_test, y_test, feature_columns, ai_model_filename,
+                model_from_db, train_start_time, train_end_time, model_hash):
+    model = Sequential()
+    for layer in range(config['layers']):
+        model.add(LSTM(units=config['neurones'], return_sequences=True, input_shape=(None, num_features),
+                       kernel_initializer='glorot_uniform'))
+        model.add(Dropout(0.5))  # Dropout-Schicht mit 50% Auslasswahrscheinlichkeit
+    model.add(LSTM(units=config['neurones'], kernel_initializer='glorot_uniform'))
+    model.add(Dropout(0.5))  # Dropout-Schicht mit 50% Auslasswahrscheinlichkeit
+    model.add(Dense(1, kernel_initializer='he_normal'))
+
+    # EarlyStopping Callback definieren
+    early_stopper = EarlyStopping(
+        monitor='val_loss',  # Überwachung des Validierungsverlustes
+        min_delta=0.0001,  # Die minimale Veränderung, die als Verbesserung betrachtet wird
+        patience=10,  # Anzahl der Epochen ohne signifikante Verbesserung
+        verbose=1,  # Ausgabe von Meldungen aktivieren
+        mode='min',  # Der Modus 'min' bedeutet, dass das Training bei einer Abnahme des 'val_loss' gestoppt wird
+        restore_best_weights=True  # Setzt die Modellgewichte auf die aus der besten Epoche zurück
+    )
+
+    # Kompilieren des Modells
+    model.compile(optimizer='adam', loss='mean_squared_error')
+
+    # Trainieren des Modells
+    model.fit(
+        x=x_train,
+        y=y_train,
+        batch_size=config['batch_size'],
+        epochs=config['epochs'],
+        validation_data=(x_test, y_test),
+        callbacks=[early_stopper]  # EarlyStopping-Callback hinzufügen
+    )
+
+    # Überprüfen, ob Early Stopping stattgefunden hat
+    if early_stopper.stopped_epoch > 0:
+        early_stopping_epoch = early_stopper.stopped_epoch
+    else:
+        early_stopping_epoch = None
+
+    # Initialisieren des SHAP Explainers
+    explainer = shap.DeepExplainer(model, x_train)
+    # Berechnen der SHAP-Werte für den Testdatensatz
+    shap_values = explainer.shap_values(x_test)
+    # Umwandeln der SHAP-Werte in einen durchschnittlichen Wert pro Feature
+    shap_values_df = pd.DataFrame(shap_values[0], columns=feature_columns)
+    average_shap_values = shap_values_df.mean().reset_index()
+    average_shap_values.columns = ['feature', 'average_shap_value']
+    # Konvertieren der durchschnittlichen SHAP-Werte in einen JSON-String
+    average_shap_json = average_shap_values.to_json(orient='records', indent=4)
+
+    # Speichern
+    model.save(ai_model_filename)
+    # in die DB nur, wenn es n noch keinen Eintrag gibt
+    # das kann passieren, wenn es bereits ein Model und den DB eintrag gab, das model dann aber gelöscht wurde
+    if not model_from_db:
+        db.save_model_to_db(config, train_start_time, train_end_time, model_hash, early_stopping_epoch,
+                            average_shap_json)
+
+    return model
 
 
+def predict_directions(df, model, x_test, num_features, scaler):
+    # Verwendung des Modells zur Vorhersage
+    predicted_prices = model.predict(x_test)
+    # Berechnen der Differenzen zwischen aufeinanderfolgenden vorhergesagten Preisen
+    price_changes = np.diff(predicted_prices.squeeze(), prepend=predicted_prices[0])
+    # Bestimmen der Richtungen basierend auf den Preisänderungen (1 für steigend, -1 für fallend)
+    predicted_directions = np.sign(price_changes)
+    # Umwandeln von 0 zu -1, falls Sie keine neutralen Vorhersagen haben möchten
+    predicted_directions[predicted_directions == 0] = -1
+    # Angenommen, predicted_prices ist Ihr Array von vorhergesagten 'close' Preisen mit Form (n_samples, 1)
+    # Erstellen Sie ein Dummy-Array mit Nullen oder einem anderen Platzhalterwert
+    # für die anderen Spalten, die beim Skalieren berücksichtigt wurden
+    dummy_features = np.zeros(
+        (predicted_prices.shape[0], num_features - 1))  # Erstellt ein Array von Nullen für die restlichen Features
+    # Fügen Sie die vorhergesagten Preise zu diesem Array hinzu, um die korrekte Form zu erhalten
+    predicted_full = np.concatenate([dummy_features, predicted_prices], axis=1)
+    # Wenden Sie inverse_transform auf dieses vollständige Array an
+    predicted_full_inverse = scaler.inverse_transform(predicted_full)
+    # Extrahieren Sie die skalierten 'close' Preise (angenommen, sie befinden sich in der letzten Spalte)
+    predicted_prices = predicted_full_inverse[:, -1]
+    n = len(predicted_prices)
+    actual_prices = df['close'][-n:].values
+
+    return predicted_directions, predicted_prices, actual_prices
 
 
+def make_long_term_predictions(model, x_train, num_predictions):
+    predictions = []
+    current_input = x_train
+    for _ in range(num_predictions):
+        # Vorhersage für den aktuellen Input
+        current_prediction = model.predict(current_input)
+        predictions.append(current_prediction)
+        # Aktualisieren des Inputs, um die nächste Vorhersage zu machen
+        current_input = np.roll(current_input, -1, axis=1)
+        current_input[:, -1, :] = current_prediction
+    return np.array(predictions)
+
+
+def plot_chart(df, predicted_directions):
+    if local_config.PLOT_CHART:
+        print("Zu vergleichende Kerzen: ", local_config.CHART_LENGTH)
+        # Erstellen einer expliziten Kopie von df, um SettingWithCopyWarning zu vermeiden
+        filtered_df = df.iloc[-local_config.CHART_LENGTH:].copy()
+        # Schneiden Sie die predicted_directions, um nur die letzten n Richtungen zu haben
+        filtered_predicted_directions = predicted_directions[-local_config.CHART_LENGTH:]
+        # zum aktuellen df hinzufügen
+        filtered_df.loc[:, 'Predictions'] = filtered_predicted_directions
+
+        # Erstellen einer Serie, die `NaN` für die `close`-Preise setzt, wo die Vorhersage nicht 1 oder -1 ist
+        up_prices = filtered_df['close'].where(filtered_df['Predictions'] == 1)
+        down_prices = filtered_df['close'].where(filtered_df['Predictions'] == -1)
+        # Erstellen der Addplot-Objekte
+        up_scatter = mpf.make_addplot(up_prices, type='scatter', markersize=100, marker='^', color='green')
+        down_scatter = mpf.make_addplot(down_prices, type='scatter', markersize=100, marker='v', color='red')
+
+        # Erstellen des kombinierten Candlestick-Charts mit vorhergesagten Richtungen
+        mpf.plot(filtered_df, type='candle', style='charles', addplot=[up_scatter, down_scatter],
+                 volume=True, figratio=(10, 6), title='Tatsächliche Kurse mit Vorhersagen')
 
 
 

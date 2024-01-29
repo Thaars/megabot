@@ -138,7 +138,9 @@ class DB:
                           "`true_predictions_count` int(10),"
                           "`true_predictions_percent` decimal(7,4),"
                           "`true_on_bullish_percent` decimal(7,4),"
-                          "`true_on_bearish_percent` decimal(7,4)"
+                          "`true_on_bearish_percent` decimal(7,4),"
+                          "`mse_percent` decimal(7,4),"
+                          "`mae_percent` decimal(7,4),"
                           ");")
         db_cursor.close()
 
@@ -195,7 +197,7 @@ class DB:
 
     def save_predictions_to_db(self, config, test_start_time, test_end_time, model_hash, total_predictions_count,
                                true_predictions_count, true_predictions_percent, true_on_bullish_percent,
-                               true_on_bearish_percent):
+                               true_on_bearish_percent, mse_percent, mae_percent):
         self.connection.ping(reconnect=True)
         model_from_db = self.get_model_from_db(model_hash)
         db_cursor = self.connection.cursor(buffered=True)
@@ -210,9 +212,11 @@ class DB:
                                 "`true_predictions_count`,"
                                 "`true_predictions_percent`,"
                                 "`true_on_bullish_percent`,"
-                                "`true_on_bearish_percent`"
+                                "`true_on_bearish_percent`,"
+                                "`mse_percent`,"
+                                "`mae_percent`"
                               ") values("
-                                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
                               ")", (
                                 config['symbol'],
                                 config['timeframe'],
@@ -224,7 +228,9 @@ class DB:
                                 int(true_predictions_count),
                                 float(round(true_predictions_percent, 2)),
                                 float(round(true_on_bullish_percent, 2)),
-                                float(round(true_on_bearish_percent, 2))
+                                float(round(true_on_bearish_percent, 2)),
+                                float(round(mse_percent, 4)),
+                                float(round(mae_percent, 4))
                               ))
         self.connection.commit()
         db_cursor.close()
