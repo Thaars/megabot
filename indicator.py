@@ -225,6 +225,8 @@ def fractals(df, filename, period):
                              (df['low'].shift(3) < df['low'].shift(4)) &
                              (df['low'].shift(3) < df['low'].shift(5))).shift(-2)
 
+    df.loc[df.index[-2:], [name_bullish, name_bearish]] = False
+
     df.to_csv(filename, index=True, sep=";")
 
     print('done')
