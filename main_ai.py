@@ -69,7 +69,9 @@ def execute(config):
     # Anzahl der Kerzen, die vom Ende des Dataframes für den Plot verwendet werden sollen
     chart_length = 500
 
+    print('-----------------------------------------------------------')
     print(json.dumps(config))
+    print('-----------------------------------------------------------')
 
     db = DB()
     filename = get_all_binance(config['symbol'], config['timeframe'])
@@ -124,6 +126,8 @@ def execute(config):
     model_hash = create_hash(config, train_start_time, train_end_time)
     ai_model_filename = f'{ai_model_path}{model_hash}.keras'
     model_from_db = db.get_model_from_db(model_hash)
+
+    print(f"\tmodel_hash: {model_hash}")
 
     if os.path.isfile(ai_model_filename) and not model_from_db:
         db.save_model_to_db(config, train_start_time, train_end_time, model_hash)
