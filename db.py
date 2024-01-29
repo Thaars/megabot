@@ -3,8 +3,6 @@ from datetime import datetime
 
 import mysql.connector
 import db_credentials
-from sshtunnel import SSHTunnelForwarder
-import pymysql
 
 
 # https://www.edureka.co/blog/python-database-connection/#MySQL
@@ -19,20 +17,11 @@ class DB:
         self.connection.close()
 
     def connect_db(self):
-        # Erstellen des SSH-Tunnels
-        # with SSHTunnelForwarder(
-        #         (db_credentials.SSH_HOST, 22),
-        #         ssh_username=db_credentials.SSH_USERNAME,
-        #         ssh_pkey=db_credentials.SSH_PRIVATE_KEY_PATH,
-        #         remote_bind_address=(db_credentials.MYSQL_HOST, db_credentials.MYSQL_PORT),
-        #         local_bind_address=('127.0.0.1', 3306)
-        # ) as tunnel:
-        # Verbindung zur Datenbank herstellen
         db = mysql.connector.connect(
             host=db_credentials.MYSQL_HOST,
             # port=tunnel.local_bind_port,
             user=db_credentials.MYSQL_USER,
-            password=db_credentials.MYSQL_PASSWORD,
+            password=db_credentials.MYSQL_PASS,
             database=db_credentials.MYSQL_DB
         )
 
