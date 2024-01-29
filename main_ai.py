@@ -16,7 +16,7 @@ from definitions import *
 
 from sklearn.preprocessing import MinMaxScaler
 from keras.models import Sequential, load_model
-from keras.layers import Dense, LSTM
+from keras.layers import Dense, LSTM, Dropout
 from keras.callbacks import EarlyStopping
 import numpy as np
 import mplfinance as mpf
@@ -114,13 +114,15 @@ def execute(config):
         for layer in range(config['layers']):
             model.add(LSTM(units=config['neurones'], return_sequences=True, input_shape=(None, num_features),
                            kernel_initializer='glorot_uniform'))
+            model.add(Dropout(0.5))  # Dropout-Schicht mit 50% Auslasswahrscheinlichkeit
         model.add(LSTM(units=config['neurones'], kernel_initializer='glorot_uniform'))
+        model.add(Dropout(0.5))  # Dropout-Schicht mit 50% Auslasswahrscheinlichkeit
         model.add(Dense(1, kernel_initializer='he_normal'))
 
         # EarlyStopping Callback definieren
         early_stopper = EarlyStopping(
             monitor='val_loss',  # Überwachung des Validierungsverlustes
-            min_delta=0.1,  # Die minimale Veränderung, die als Verbesserung betrachtet wird
+            min_delta=0.0001,  # Die minimale Veränderung, die als Verbesserung betrachtet wird
             patience=10,  # Anzahl der Epochen ohne signifikante Verbesserung
             verbose=1,  # Ausgabe von Meldungen aktivieren
             mode='min',  # Der Modus 'min' bedeutet, dass das Training bei einer Abnahme des 'val_loss' gestoppt wird
