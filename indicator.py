@@ -81,16 +81,22 @@ def last_5_10_15_20_candles(df, filename):
                 diff = abs(row['close'] - row['open'])
                 if diff > largest_body:
                     largest_body = diff
+                    if largest_body is not None:
+                        largest_body = round(largest_body, 4)
                 # highest high
                 if row['high'] > highest_high:
                     highest_high = row['high']
+                    if highest_high is not None:
+                        highest_high = round(highest_high, 4)
                 # lowest low
                 if lowest_low == 0 or row['low'] < lowest_low:
                     lowest_low = row['low']
+                    if lowest_low is not None:
+                        lowest_low = round(lowest_low, 4)
 
-        data[f'highest_high_{number_of_candles}'].append(round(highest_high, 4))
-        data[f'lowest_low_{number_of_candles}'].append(round(lowest_low, 4))
-        data[f'largest_body_{number_of_candles}'].append(round(largest_body, 4))
+        data[f'highest_high_{number_of_candles}'].append(highest_high)
+        data[f'lowest_low_{number_of_candles}'].append(lowest_low)
+        data[f'largest_body_{number_of_candles}'].append(largest_body)
 
     last5 = list()
     last10 = list()
