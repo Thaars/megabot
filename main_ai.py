@@ -29,8 +29,8 @@ nvidia-smi -l 1
 
 
 def main():
-    # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-    use_test_configs = False
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+    use_test_configs = True
 
     if use_test_configs:
         for config in test_configs:
