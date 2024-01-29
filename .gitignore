@@ -137,3 +137,4 @@ ai_models/*
 .idea
 /tmp/
 /db_credentials.py
+/local_config.py

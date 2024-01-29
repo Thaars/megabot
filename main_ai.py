@@ -3,6 +3,7 @@ import os
 import zlib
 
 import definitions
+import local_config
 import strategy
 import dataframe
 import plot
@@ -21,6 +22,7 @@ import numpy as np
 import mplfinance as mpf
 from datetime import date, datetime
 from test_configs import *
+from local_config import *
 
 '''
 # laufend den GPU Speicher im CLI anzeigen- - refresh jede Sekunde
@@ -29,49 +31,21 @@ nvidia-smi -l 1
 
 
 def main():
-    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-    use_test_configs = True
+    if local_config.FORCE_USE_CPU:
+        os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
-    if use_test_configs:
+    if local_config.FORCE_USE_TEST_CONFIGS:
         for config in test_configs:
             execute(config)
     else:
-        config = {
-            'symbol': 'BTCUSDT',
-            'timeframe': '30m',
-            'layers': 3,
-            'neurones': 100,
-            # Liste von Spaltennamen, die als Features dienen sollen
-            'columns': ['open', 'high', 'low', 'close',
-                        'aroon_25_up', 'aroon_25_down',
-                        'ma_7', 'ma_26', 'ma_golden_cross_7_26', 'ma_death_cross_7_26',
-                        'fractal_5_bullish', 'fractal_5_bearish'],
-            # Anzahl der Datenpunkte für die Sequenz (wird benutzt um den nachfolgenden Datenpunkt vorherzusagen)
-            'sequence_length': 30,
-            # Berechnen des Trennindex - 80% der Daten für das Training
-            'split_index': 0.7,
-            'epochs': 50,
-            # mittlere Größe als Kompromiss (32, 64, 128)
-            # je größer desto mehr Speicherbedarf
-            # todo: einkommentieren !!! ist auskommentiert, da auf dem Server die sdeicherung eines modells nicht
-            #  möglich war - soll erkennen, dass es ein modell gibt, die config dazu speichern und testen - danach
-            #  diese batch size verwenden und unten im code die config verwenden statt der harten 1 - ggf. methode
-            #  um die batch size bestehenden models in der db hinzuizufügen
-            #  (config anpassen, hash berechnen, db updaten, model name updaten)
-            # 'batch_size': 32
-        }
-        execute(config)
+        execute(local_config.SINGLE_CONFIG)
 
 
 def execute(config):
     ai_model_path = 'ai_models/'
-    chart = False
-    # Anzahl der Kerzen, die vom Ende des Dataframes für den Plot verwendet werden sollen
-    chart_length = 500
 
     print('-----------------------------------------------------------')
     print(json.dumps(config))
-    print('-----------------------------------------------------------')
 
     db = DB()
     filename = get_all_binance(config['symbol'], config['timeframe'])
@@ -128,6 +102,7 @@ def execute(config):
     model_from_db = db.get_model_from_db(model_hash)
 
     print(f"\tmodel_hash: {model_hash}")
+    print('-----------------------------------------------------------')
 
     if os.path.isfile(ai_model_filename) and not model_from_db:
         db.save_model_to_db(config, train_start_time, train_end_time, model_hash)
@@ -158,7 +133,7 @@ def execute(config):
         model.fit(
             x=x_train,
             y=y_train,
-            batch_size=1,#config['batch_size'],
+            batch_size=config['batch_size'],
             epochs=config['epochs'],
             validation_data=(x_test, y_test),
             callbacks=[early_stopper]  # EarlyStopping-Callback hinzufügen
@@ -193,12 +168,12 @@ def execute(config):
     n = len(predicted_prices)
     actual_prices = df['close'][-n:].values
 
-    if chart:
-        print("Zu vergleichende Kerzen: ", chart_length)
+    if local_config.PLOT_CHART:
+        print("Zu vergleichende Kerzen: ", local_config.CHART_LENGTH)
         # Erstellen einer expliziten Kopie von df, um SettingWithCopyWarning zu vermeiden
-        filtered_df = df.iloc[-chart_length:].copy()
+        filtered_df = df.iloc[-local_config.CHART_LENGTH:].copy()
         # Schneiden Sie die predicted_directions, um nur die letzten n Richtungen zu haben
-        filtered_predicted_directions = predicted_directions[-chart_length:]
+        filtered_predicted_directions = predicted_directions[-local_config.CHART_LENGTH:]
         # zum aktuellen df hinzufügen
         filtered_df.loc[:, 'Predictions'] = filtered_predicted_directions
 
