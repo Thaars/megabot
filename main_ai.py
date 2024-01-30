@@ -72,6 +72,13 @@ def execute(config):
         model = train_model(db, config, num_features, x_train, y_train, x_test, y_test, feature_columns,
                             ai_model_filename, model_from_db, train_start_time, train_end_time, model_hash)
 
+
+    # todo
+    # Anomalien identifizieren
+    # anomalies = detect_anomalies(long_term_predictions, window_size=5, threshold=2.0)  # Beispielwerte
+
+
+
     # predict_directions
     predicted_directions, predicted_prices, actual_prices = predict_directions(df, model, x_test, num_features, scaler)
 
@@ -369,7 +376,16 @@ def plot_chart(df, predicted_directions):
                  volume=True, figratio=(10, 6), title='Tatsächliche Kurse mit Vorhersagen')
 
 
+def detect_anomalies(predictions, window_size, threshold):
+    anomalies = []
+    moving_avg = pd.Series(predictions).rolling(window=window_size).mean()
+    residual = abs(predictions - moving_avg)
 
+    for i in range(len(residual)):
+        if residual[i] > threshold:
+            anomalies.append((i, predictions[i]))
+
+    return anomalies
 
 
 main()

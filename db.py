@@ -140,7 +140,7 @@ class DB:
                           "`true_on_bullish_percent` decimal(7,4),"
                           "`true_on_bearish_percent` decimal(7,4),"
                           "`mse_percent` decimal(7,4),"
-                          "`mae_percent` decimal(7,4),"
+                          "`mae_percent` decimal(7,4)"
                           ");")
         db_cursor.close()
 
