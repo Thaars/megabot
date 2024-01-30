@@ -78,15 +78,25 @@ def execute(config):
     # make_long_term_predictions
     long_term_predictions = make_long_term_predictions(model, x_test, 10)
 
-    average_price = df['close'].mean()  # Durchschnittspreis von Bitcoin
     # Angenommen, y_test sind die tatsächlichen Werte
     mse = mean_squared_error(y_test, long_term_predictions)
     mae = mean_absolute_error(y_test, long_term_predictions)
-    mae_percent = (mae / average_price) * 100
-    mse_percent = (np.sqrt(mse) / average_price) * 100
+    long_term_average_price = df['close'].mean()  # Durchschnittspreis von Bitcoin
+    mae_percent = (mae / long_term_average_price) * 100
+    mse_percent = (np.sqrt(mse) / long_term_average_price) * 100
 
     print(f"MAE als Prozentsatz des Durchschnittspreises: {mae_percent:.2f}%")
     print(f"RMSE als Prozentsatz des Durchschnittspreises: {mse_percent:.2f}%")
+
+    actual_changes = calculate_price_changes(y_test)
+    predicted_changes = calculate_price_changes(long_term_predictions.squeeze())
+    total_correct, percentage_correct, accuracy_up, accuracy_down = calculate_direction_accuracy_and_percentage(
+        actual_changes, predicted_changes)
+
+    print(f"TREND: Gesamtzahl der korrekten Vorhersagen: {total_correct}")
+    print(f"TREND: Prozentualer Anteil der korrekten Vorhersagen: {percentage_correct:.2f}%")
+    print(f"TREND: Genauigkeit bei steigenden Kursen: {accuracy_up:.2f}%")
+    print(f"TREND: Genauigkeit bei fallenden Kursen: {accuracy_down:.2f}%")
 
     # plot_chart
     plot_chart(df, predicted_directions)
@@ -98,11 +108,11 @@ def execute(config):
         actual_changes, predicted_changes
     )
 
-    print(f"Anzahl aller Vorhersagen: {len(predicted_prices)}")
-    print(f"Gesamtzahl der korrekten Vorhersagen: {total_correct}")
-    print(f"Prozentualer Anteil der korrekten Vorhersagen: {percentage_correct} %")
-    print(f"Genauigkeit bei steigenden Kursen: {accuracy_up} %")
-    print(f"Genauigkeit bei fallenden Kursen: {accuracy_down} %")
+    print(f"NEXT CANDLE: Anzahl aller Vorhersagen: {len(predicted_prices)}")
+    print(f"NEXT CANDLE: Gesamtzahl der korrekten Vorhersagen: {total_correct}")
+    print(f"NEXT CANDLE: Prozentualer Anteil der korrekten Vorhersagen: {percentage_correct} %")
+    print(f"NEXT CANDLE: Genauigkeit bei steigenden Kursen: {accuracy_up} %")
+    print(f"NEXT CANDLE: Genauigkeit bei fallenden Kursen: {accuracy_down} %")
 
     db.save_predictions_to_db(config, test_start_time, test_end_time, model_hash, len(predicted_prices), total_correct,
                               percentage_correct, accuracy_up, accuracy_down, mse_percent, mae_percent)
@@ -316,6 +326,12 @@ def predict_directions(df, model, x_test, num_features, scaler):
     actual_prices = df['close'][-n:].values
 
     return predicted_directions, predicted_prices, actual_prices
+
+
+def calculate_price_changes(prices):
+    # Berechnet die Differenzen zwischen aufeinanderfolgenden Werten
+    changes = np.diff(prices, prepend=prices[0])
+    return changes
 
 
 def make_long_term_predictions(model, x_train, num_predictions):
