@@ -23,7 +23,6 @@ from keras.callbacks import EarlyStopping
 import numpy as np
 import mplfinance as mpf
 from datetime import date, datetime
-import shap
 from test_configs import *
 from local_config import *
 
@@ -82,18 +81,32 @@ def execute(config):
     # predict_directions
     predicted_directions, predicted_prices, actual_prices = predict_directions(df, model, x_test, num_features, scaler)
 
-    # make_long_term_predictions
+    # Langzeitvorhersagen machen
     long_term_predictions = make_long_term_predictions(model, x_test, 10)
 
-    # Angenommen, y_test sind die tatsächlichen Werte
-    mse = mean_squared_error(y_test, long_term_predictions)
-    mae = mean_absolute_error(y_test, long_term_predictions)
+    # Rücktransformation der Vorhersagen
+    # Hinweis: Dies setzt voraus, dass Sie bereits einen Scaler definiert und angepasst haben
+    dummy_data = np.zeros((long_term_predictions.shape[0] * long_term_predictions.shape[1], num_features))
+    dummy_data[:, 3] = long_term_predictions.flatten()  # Angenommen, der Preis ist das letzte Feature
+    actual_data = scaler.inverse_transform(dummy_data)
+    actual_prices = actual_data[:, 3].reshape(long_term_predictions.shape[0], long_term_predictions.shape[1])
+
+    # Mittelwert der tatsächlichen Preise berechnen
+    long_term_predictions_mean = np.mean(actual_prices, axis=0).squeeze()
+
+    # Die folgenden Schritte bleiben unverändert
+    mse = mean_squared_error(y_test, long_term_predictions_mean)
+    mae = mean_absolute_error(y_test, long_term_predictions_mean)
     long_term_average_price = df['close'].mean()  # Durchschnittspreis von Bitcoin
     mae_percent = (mae / long_term_average_price) * 100
     mse_percent = (np.sqrt(mse) / long_term_average_price) * 100
+    current_price = df['close'].iloc[-1]  # Letzter bekannter Preis
+    predicted_price = long_term_predictions_mean[-1]  # Vorhergesagter Preis am Ende des Vorhersagezeitraums
+    percent_change = ((predicted_price - current_price) / current_price) * 100
 
-    print(f"MAE als Prozentsatz des Durchschnittspreises: {mae_percent:.2f}%")
-    print(f"RMSE als Prozentsatz des Durchschnittspreises: {mse_percent:.2f}%")
+    print(f"MAE als Prozentsatz des Durchschnittspreises: {mae_percent}%")
+    print(f"RMSE als Prozentsatz des Durchschnittspreises: {mse_percent}%")
+    print(f"Durchschnittliche prozentuale Veränderung: {percent_change}%")
 
     actual_changes = calculate_price_changes(y_test)
     predicted_changes = calculate_price_changes(long_term_predictions.squeeze())
@@ -287,16 +300,23 @@ def train_model(db, config, num_features, x_train, y_train, x_test, y_test, feat
     else:
         early_stopping_epoch = None
 
-    # Initialisieren des SHAP Explainers
-    explainer = shap.DeepExplainer(model, x_train)
-    # Berechnen der SHAP-Werte für den Testdatensatz
-    shap_values = explainer.shap_values(x_test)
-    # Umwandeln der SHAP-Werte in einen durchschnittlichen Wert pro Feature
-    shap_values_df = pd.DataFrame(shap_values[0], columns=feature_columns)
-    average_shap_values = shap_values_df.mean().reset_index()
-    average_shap_values.columns = ['feature', 'average_shap_value']
-    # Konvertieren der durchschnittlichen SHAP-Werte in einen JSON-String
-    average_shap_json = average_shap_values.to_json(orient='records', indent=4)
+    # Bestimmen der Größe der Stichprobe
+    sample_size = 100  # zum Beispiel 1000
+    # Wählen einer zufälligen Stichprobe aus x_train
+    indices = np.random.choice(x_train.shape[0], sample_size, replace=False)
+    x_train_sample = x_train[indices]
+
+    # evaluate_model ist eine Funktion, die Ihr Modell mit einem Datensatz bewertet
+    # und eine Leistungsmetrik zurückgibt (z.B. Genauigkeit, MSE, etc.)
+    baseline_performance = evaluate_model(model, x_test, y_test)
+
+    feature_importances = []
+    for i in range(x_test.shape[2]):  # Iterieren über Feature-Dimension
+        x_test_permuted = x_test.copy()
+        np.random.shuffle(x_test_permuted[:, :, i])  # Permutieren nur dieses Features
+        permuted_performance = evaluate_model(model, x_test_permuted, y_test)
+        importance = baseline_performance - permuted_performance  # Leistungsunterschied
+        feature_importances.append(importance)
 
     # Speichern
     model.save(ai_model_filename)
@@ -304,7 +324,7 @@ def train_model(db, config, num_features, x_train, y_train, x_test, y_test, feat
     # das kann passieren, wenn es bereits ein Model und den DB eintrag gab, das model dann aber gelöscht wurde
     if not model_from_db:
         db.save_model_to_db(config, train_start_time, train_end_time, model_hash, early_stopping_epoch,
-                            average_shap_json)
+                            json.dumps(feature_importances))
 
     return model
 
@@ -386,6 +406,12 @@ def detect_anomalies(predictions, window_size, threshold):
             anomalies.append((i, predictions[i]))
 
     return anomalies
+
+
+def evaluate_model(model, x_test, y_test):
+    predictions = model.predict(x_test)
+    mse = mean_squared_error(y_test, predictions)
+    return mse
 
 
 main()
