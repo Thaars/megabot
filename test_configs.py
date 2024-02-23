@@ -1,4 +1,62 @@
 test_configs = [
+    ### EXAMPLE LOCAL CONFIG ###
+    # {
+    #     'timeframe': '4h',
+    #     'layers': 3,
+    #     'neurones': 30,
+    #     # Liste von Spaltennamen, die als Features dienen sollen
+    #     'columns': ['open', 'high', 'low', 'close',
+    #                 ### CUSTOM ###
+    #                 # 'highest_high_5', 'lowest_low_5', 'largest_body_5',
+    #                 # 'highest_high_10', 'lowest_low_10', 'largest_body_10',
+    #                 # 'highest_high_15', 'lowest_low_15', 'largest_body_15',
+    #                 # 'highest_high_20', 'lowest_low_20', 'largest_body_20',
+    #                 # 'highest_high_30', 'lowest_low_30', 'largest_body_30',
+    #                 # 'highest_high_40', 'lowest_low_40', 'largest_body_40',
+    #                 # 'highest_high_50', 'lowest_low_50', 'largest_body_50',
+    #                 # 'highest_high_75', 'lowest_low_75', 'largest_body_75',
+    #                 # 'highest_high_100', 'lowest_low_100', 'largest_body_100',
+    #                 ### MOMENTUM + TREND ###
+    #                 'macd_5_13_signal_5_line', 'macd_5_13_signal_5_signal',
+    #                 'ichimoku_conversion', 'ichimoku_base', 'ichimoku_leading_a', 'ichimoku_leading_b', 'ichimoku_lagging',
+    #                 ### TREND ###
+    #                 # 'aroon_25_up', 'aroon_25_down',
+    #                 # 'ma_7', 'ma_26', 'ma_golden_cross_7_26', 'ma_death_cross_7_26', # MA Cross
+    #                 # 'PSARl_0.03_0.2', 'PSARs_0.03_0.2', 'PSARaf_0.03_0.2', 'PSARr_0.03_0.2', # Parabolic SAR
+    #                 # 'vortex_8_pos', 'vortex_8_neg',
+    #                 # 'hma_9',
+    #                 # 'ema_9',
+    #                 # 'ema_10', 'keltner_10_5_1.5_upper', 'keltner_10_5_1.5_lower',
+    #                 # 'fib_15_23.6', 'fib_15_38.2', 'fib_15_50.0', 'fib_15_61.8', 'fib_15_78.6', # Fibonacci Retracements
+    #                 ### VOLUMEN ###
+    #                 # 'volume_sma_9',
+    #                 # 'accumulation_distribution,'
+    #                 # 'chaikin_volatility_8_8',
+    #                 # 'efi_9', # Elders Force Index
+    #                 ### OSZILLATOREN ###
+    #                 # 'williams_r_10',
+    #                 # 'rsi_10',
+    #                 # 'dem_10', # DeMarker Indicator
+    #                 ### VOLATILITÄT ###
+    #                 # 'historical_volatility_8',
+    #                 # 'bollinger_bands_12_2_middle', 'bollinger_bands_12_2_upper', 'bollinger_bands_12_2_lower',
+    #                 # 'atr_8', # Average True Range
+    #                 ### MUSTER ###
+    #                 # 'fractal_5_bullish', 'fractal_5_bearish',
+    #                 ],
+    #     # Anzahl der Datenpunkte für die Sequenz (wird benutzt um den nachfolgenden Datenpunkt vorherzusagen)
+    #     'sequence_length': 30,
+    #     # Berechnen des Trennindex - 80% der Daten für das Training
+    #     'split_index': 0.7,
+    #     'epochs': 1,
+    #     # mittlere Größe als Kompromiss (32, 64, 128)
+    #     # je größer desto mehr Speicherbedarf
+    #     'batch_size': 128
+    # },
+
+
+
+
     # {
     #     'symbol': 'BTCUSDT',
     #     'timeframe': '30m',
